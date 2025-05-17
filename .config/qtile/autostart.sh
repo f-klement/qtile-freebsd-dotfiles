@@ -39,7 +39,7 @@ flatpak run org.flameshot.Flameshot &
 copyq &                       # dnf install copyq
 
 # ── Cursor + View Settings ───────────────────────────────────
-export GTK_THEME=Adwaita-dark
+export GTK_THEME=Adwaita:dark
 export QTILE_CHECK_SKIP_STUBS=1
 export XCURSOR_THEME="Dracula"
 export XCURSOR_SIZE="24"
