@@ -31,13 +31,17 @@ dnf -y config-manager --set-enabled crb
 dnf install rpmfusion-free-release
 dnf install --nogpgcheck https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-$(rpm -E %rhel).noarch.rpm https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-$(rpm -E %rhel).noarch.rpm
 
-dnf groupupdate core
+dnf groupupdate corednf groupupdate multimedia --setop="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
+
 dnf groupupdate multimedia --setop="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
 dnf groupupdate sound-and-video
 
 dnf install snapd
 systemctl enable --now snapd.socket
 ln -s /var/lib/snapd/snap /snap
+snap refresh
+snap install core
+snap install direnv
 dnf clean all
 dnf makecache
 dnf update
