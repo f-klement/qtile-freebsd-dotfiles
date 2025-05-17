@@ -30,6 +30,11 @@ dnf -y install epel-release epel-next-release flatpak git stow
 dnf -y config-manager --set-enabled crb
 dnf install rpmfusion-free-release
 dnf install --nogpgcheck https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-$(rpm -E %rhel).noarch.rpm https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-$(rpm -E %rhel).noarch.rpm
+
+dnf groupupdate core
+dnf groupupdate multimedia --setop="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
+dnf groupupdate sound-and-video
+
 dnf install snapd
 systemctl enable --now snapd.socket
 ln -s /var/lib/snapd/snap /snap
