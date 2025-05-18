@@ -66,7 +66,7 @@ dnf -y install \
   libXScrnSaver-devel spice-vdagent libxkbcommon libxkbcommon-devel \
   xcb-util-keysyms-devel xcb-util-wm-devel xcb-util-devel libXcursor-devel \
   libXinerama-devel python3-pyopengl fontawesome-fonts open-vm-tools \
-  open-vm-tools-desktop
+  open-vm-tools-desktop papirus-icon-theme
 
 sudo -iu "$TARGET_USER" bash <<EOF
 set -e
@@ -76,14 +76,22 @@ source "$QTILE_VENV/bin/activate"
 pip install --upgrade pip
 pip install qtile qtile-extras mypy typeshed-client typing_extensions pulsectl dbus-next psutil
 # upgrade these separately
+<<<<<<< HEAD
 pip install --upgrade python-dateutil dbus-fast pulsectl-asyncio
+=======
+pip install --upgrade python-dateutil dbus-fast
+>>>>>>> refs/remotes/origin/main
 EOF
 
 cat >/usr/share/xsessions/qtile.desktop <<'EOF'
 [Desktop Entry]
 Name=Qtile
 Comment=Qtile Tiling Window Manager (Python 3.12, X11)
+<<<<<<< HEAD
 Exec=/home/$TARGET_USER/.local/venvs/qtile/bin/qtile start
+=======
+Exec=/home/%u/.local/venvs/qtile/bin/qtile start
+>>>>>>> refs/remotes/origin/main
 Type=Application
 Keywords=wm;tiling
 EOF
@@ -242,6 +250,10 @@ sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime def
 sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default vlc.desktop audio/x-wav
 
 
+<<<<<<< HEAD
 
 echo "✔ Migration complete!  Use stow . to symlink your dotfiles once you’re settled in."
+=======
+>>>>>>> refs/remotes/origin/main
 
+echo "✔ Migration complete!  Use stow . to symlink your dotfiles once you’re settled in."
