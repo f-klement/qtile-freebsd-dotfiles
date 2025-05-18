@@ -87,6 +87,7 @@ alias qenv='source ~/.local/venvs/qtile/bin/activate'
 alias qcheck='~/.local/venvs/qtile/bin/qtile check'
 alias qconf='vim ~/.config/qtile/config.py'
 alias qvalid='( source ~/.local/venvs/qtile/bin/activate && qtile check )'
+alias qlogs='tail -f ~/.local/share/qtile/qtile.log'
 
 # Alias definitions.
 # You may want to put all your additions into a separate file like

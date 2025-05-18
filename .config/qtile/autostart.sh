@@ -1,6 +1,7 @@
 #!/usr/bin/env bash 
 
 export PATH="/usr/local/bin:$PATH"
+#xrandr --output Virtual-1 --mode 1920x1200 --rate 60
 
 # Start notification daemon
 /usr/local/bin/dunst &  
