@@ -76,22 +76,14 @@ source "$QTILE_VENV/bin/activate"
 pip install --upgrade pip
 pip install qtile qtile-extras mypy typeshed-client typing_extensions pulsectl dbus-next psutil
 # upgrade these separately
-<<<<<<< HEAD
 pip install --upgrade python-dateutil dbus-fast pulsectl-asyncio
-=======
-pip install --upgrade python-dateutil dbus-fast
->>>>>>> refs/remotes/origin/main
 EOF
 
 cat >/usr/share/xsessions/qtile.desktop <<'EOF'
 [Desktop Entry]
 Name=Qtile
 Comment=Qtile Tiling Window Manager (Python 3.12, X11)
-<<<<<<< HEAD
 Exec=/home/$TARGET_USER/.local/venvs/qtile/bin/qtile start
-=======
-Exec=/home/%u/.local/venvs/qtile/bin/qtile start
->>>>>>> refs/remotes/origin/main
 Type=Application
 Keywords=wm;tiling
 EOF
