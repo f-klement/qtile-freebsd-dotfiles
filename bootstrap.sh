@@ -45,7 +45,7 @@ dnf -y groupupdate core
 dnf -y groupupdate multimedia --setop="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
 dnf -y groupupdate sound-and-video
 
-dnf -y install snapd stow epel-next-release
+dnf -y install snapd stow epel-next-release papirus-icon-theme dejavu-sans-fonts
 systemctl enable --now snapd.socket
 
 [[ -L /snap ]] || ln -s /var/lib/snapd/snap /snap && sleep 10
@@ -66,7 +66,7 @@ dnf -y install \
   libXScrnSaver-devel spice-vdagent libxkbcommon libxkbcommon-devel \
   xcb-util-keysyms-devel xcb-util-wm-devel xcb-util-devel libXcursor-devel \
   libXinerama-devel python3-pyopengl fontawesome-fonts open-vm-tools \
-  open-vm-tools-desktop papirus-icon-theme
+  open-vm-tools-desktop
 
 sudo -iu "$TARGET_USER" bash <<EOF
 set -e
