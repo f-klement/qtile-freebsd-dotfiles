@@ -249,11 +249,4 @@ sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime def
 sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default vlc.desktop audio/mpeg
 sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default vlc.desktop audio/x-wav
 
-
-<<<<<<< HEAD
-
-echo "✔ Migration complete!  Use stow . to symlink your dotfiles once you’re settled in."
-=======
->>>>>>> refs/remotes/origin/main
-
 echo "✔ Migration complete!  Use stow . to symlink your dotfiles once you’re settled in."
