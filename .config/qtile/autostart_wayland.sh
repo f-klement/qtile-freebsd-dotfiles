@@ -1,10 +1,10 @@
-#!/usr/bin/env bash 
+#!/usr/bin/env bash
 
 export PATH="/usr/local/bin:$PATH"
-#xrandr --output Virtual-1 --mode 1920x1200 --rate 60
+wlr-randr --output Virtual-1 --mode 1920x1200@60
 
 # Start notification daemon
-/usr/local/bin/dunst &  
+mako &
 
 # ── Keyring (run *before* any app that needs secrets) ────────────────────
 eval "$(gnome-keyring-daemon --start --components=pkcs11,secrets,ssh,gpg)"
@@ -16,28 +16,26 @@ gsettings set org.gnome.desktop.interface gtk-theme Adwaita:dark
 
 if [ ! -f /tmp/qtile_autostart_done ]; then
   # Set XDG_CURRENT_DESKTOP
-  xprop -root -set _NET_WM_DESKTOP_ENVIRONMENT "Qtile"
+  export XDG_CURRENT_DESKTOP="Qtile:Wayland"
   touch /tmp/qtile_autostart_done
 fi
 
 if [ ! -f /tmp/qtile_darkmode_set ]; then
   # For GTK applications
-  export GTK_THEME=Adwaita:dark 
+  export GTK_THEME=Adwaita:dark
   export GTK_APPLICATION_PREFERENCES=prefer-dark-theme=1
   # For Qt applications (Qt 5 and 6)
-  export QT_STYLE_OVERRIDE=adwaita-dark # 
+  export QT_STYLE_OVERRIDE=adwaita-dark #
   export QT_QPA_PLATFORMTHEME="qt5ct" #
   touch /tmp/qtile_darkmode_set
 fi
 
 # ── Tray apps ────────────────────────────────────────────────────────────
 nm-applet &
-#blueman-applet &              # requires: sudo dnf install blueman (not to be found on these corpo distros)
+#blueman-applet &
 
-# screenshots
-flatpak run org.flameshot.Flameshot &
-# ── Clipboard manager ────────────────────────────────────────────────────
-copyq &                       # dnf install copyq
+# ── Clipboard manager
+copyq &
 
 # ── Cursor + View Settings ───────────────────────────────────
 export GTK_THEME=Adwaita:dark
@@ -45,19 +43,35 @@ export QTILE_CHECK_SKIP_STUBS=1
 export XCURSOR_THEME="Dracula"
 export XCURSOR_SIZE="24"
 
-# compositor for transparency/shadows (X11 sessions)
-picom -b --config ~/.config/picom/picom.conf
-
 # wallpaper service
-variety --resume &
+# swaybg: change wallpaper randomly every 5 minutes
+swaybg_random() {
+  local dir=~/Pictures/Wallpapers
+# find all images in folder & subfolders, pick one at random
+  local file=$(find "$dir" -type f \( -iname '*.jpg' -o -iname '*.png' \) | shuf -n1)
+  swaybg -i "$file" -m fill
 
-# screen-locker on suspend/idle (X11)
-# ── blank after 5 min ─────────────────────────────────────────────────────
-xset s 300 -dpms
+# initial set
+swaybg_random
+# loop every 300 seconds (5 minutes)
+while sleep 300; do
+  swaybg_random
+done &
 
-# ── on suspend/idle, pick a random lock-image and run i3lock ──────────────
-# blank after 5 min
-xset s 300 -dpms
-# lock using our script
-xss-lock -- ~/.config/qtile/lock_with_random_bg.sh &
+# Wayland idle & lock: use swayidle with inline random-bg lock
+swayidle \
+  timeout 300 'bash -c "
+    IMG=\$(find ~/Pictures/wallpapers -type f \\( -iname '\''*.jpg'\'' -o -iname '\''*.png'\'' \\) | shuf -n1)
+    if [ -z \"\$IMG\" ]; then
+      swaylock -C000000
+    else
+      swaylock -i \"\$IMG\"
+    fi"' \
+  before-sleep 'bash -c "
+    IMG=\$(find ~/Pictures/wallpapers -type f \\( -iname '\''*.jpg'\'' -o -iname '\''*.png'\'' \\) | shuf -n1)
+    if [ -z \"\$IMG\" ]; then
+      swaylock -C000000
+    else
+      swaylock -i \"\$IMG\"
+    fi"' &
 

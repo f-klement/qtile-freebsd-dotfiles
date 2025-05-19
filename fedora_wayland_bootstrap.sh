@@ -39,7 +39,7 @@ dnf install -y \
 dnf update -y
 
 systemctl enable --now snapd.socket
-[[ -L /snap ]] || ln -s /var/lib/snapd/snap /snap && sleep 5
+[[ -L /snap ]] || ln -s /var/lib/snapd/snap /snap && sleep 10
 snap install core direnv
 
 sudo -iu "$TARGET_USER" flatpak remote-add --if-not-exists \
@@ -50,10 +50,27 @@ dnf install -y \
   python3 python3.12 python3-devel python3-pip python3-gobject \
   libffi-devel cairo cairo-devel pango pango-devel gobject-introspection-devel \
   wayland-devel wayland-protocols-devel libinput-devel libseat-devel \
-  libxkbcommon-devel spice-vdagent \
+  libxkbcommon-devel spice-vdagent python3-cffi wlroots \
   fontawesome-fonts open-vm-tools open-vm-tools-desktop \
-  python3-dbus acpid \
+  python3-dbus acpid python3.12-devel python-xkbcommon \
   xorg-x11-server-Xwayland    # for XWayland apps
+
+### 3.1 Qtile network header dependency ─────────────────────
+dnf install gcc make autoconf automake
+skip_if_installed iwconfig bash -lc "
+wget https://hewlettpackard.github.io/wireless-tools/wireless_tools.29.tar.gz -P /tmp
+cd /tmp
+tar xzf wireless_tools.29.tar.gz
+cd /tmp/wireless_tools.29
+./configure --prefix=/usr/local
+make
+make install
+echo "/usr/local/lib" | tee /etc/ld.so.conf.d/local.conf
+ldconfig
+"
+
+
+### 3.2 Qtile core ─────────────────────
 
 sudo -iu "$TARGET_USER" bash <<EOF
 set -e
@@ -64,107 +81,87 @@ pip install \
   qtile qtile-extras \
   mypy typeshed-client typing_extensions \
   pulsectl dbus-next psutil \
-  python-dateutil dbus-fast pulsectl-asyncio
+  python-dateutil dbus-fast pulsectl-asyncio \
+  pywlroots pywayland xkbcommon
+pip install qtile[all]
 EOF
 
 cat >/usr/share/wayland-sessions/qtile.desktop <<EOF
 [Desktop Entry]
 Name=Qtile (Wayland)
 Comment=Qtile Tiling Window Manager (via XWayland + native Wayland libs)
-Exec=/home/$TARGET_USER/.local/venvs/qtile/bin/qtile start
+Exec=/home/$TARGET_USER/.local/venvs/qtile/bin/qtile start -b wayland
 Type=Application
 Keywords=wm;tiling;wayland
 EOF
 
 ### 4. Runtime packages & Wayland utilities ────────────────────────────────────
 dnf install -y \
-  btop gnome-keyring polkit-gnome network-manager-applet \
-  redshift pulseaudio-utils pavucontrol \
-  bluez bluez-libs kitty vlc blueman\
+  btop gnome-keyring network-manager-applet \
+  redshift pulseaudio-utils pavucontrol copyq\
+  bluez bluez-libs wlr-randr kitty vlc blueman swaybg feh\
   swaylock swayidle wofi wl-clipboard wayland-utils wlr-randr
-
 ### 5. Flatpak GUI apps ───────────────────────────────────────────────────────
-sudo -iu "$TARGET_USER" flatpak install -y flathub \
+
+su - "$TARGET_USER" -c '
+flatpak remote-add --user --if-not-exists flathub \
+  https://dl.flathub.org/repo/flathub.flatpakrepo
+'
+
+su - "$TARGET_USER" -c '
+flatpak install --user -y flathub \
   io.gitlab.librewolf-community \
   com.brave.Browser \
   com.vscodium.codium \
   com.github.tchx84.Flatseal
-
+'
 ### 6. Builds from source ──────────────────────────────────────────────────────
-# 6.1 dunst (notification daemon works under Wayland via dbus)
-skip_if_installed dunst bash -lc "
-  set -e
-  dnf install -y meson ninja-build cmake pkgconfig gdk-pixbuf2-devel libnotify-devel wayland-devel
-  rm -rf /tmp/dunst && git clone --depth 1 https://github.com/dunst-project/dunst.git /tmp/dunst
-  cd /tmp/dunst && meson setup build --prefix=/usr/local --buildtype=release
-  ninja -C build && ninja -C build install
+# fonts & cursors
+sudo bash -lc "
+  [[ -d /usr/local/share/fonts/JetBrainsMonoNF ]] || (
+    mkdir -p /usr/local/share/fonts/JetBrainsMonoNF
+    TMP=\$(mktemp -d)
+    curl -L https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip \
+      -o \"\$TMP/jbm.zip\"
+    unzip -u \"\$TMP/jbm.zip\" -d /usr/local/share/fonts/JetBrainsMonoNF
+    rm -rf \"\$TMP\"
+    fc-cache -fv
+  )
 "
 
-# 6.2 variety (wallpaper changer; note: fallback via swaybg)
-skip_if_installed variety bash -lc "
-  set -e
-  dnf install -y python3-distutils-extra python3-pillow imlib2-devel libcurl-devel libXt-devel
-  rm -rf /tmp/variety && git clone https://github.com/varietywalls/variety.git /tmp/variety
-  cd /tmp/variety && python3 setup.py install
-"
-
-# 6.3 feh (still needed by variety, even on Wayland)
-skip_if_installed feh bash -lc "
-  set -e
-  rm -rf /tmp/feh && git clone https://github.com/derf/feh.git /tmp/feh
-  cd /tmp/feh && make && make install app=1
-"
-
-# 6.4 wofi is installed via DNF; we skip rofi entirely
-
-# 6.5 fonts & cursors
-skip_if_installed fc-cache bash -lc "
-  set -e
-  TMP=\$(mktemp -d)
-  curl -L https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip -o \"\$TMP/jbm.zip\"
-  mkdir -p /usr/local/share/fonts/JetBrainsMonoNF
-  unzip -u \"\$TMP/jbm.zip\" -d /usr/local/share/fonts/JetBrainsMonoNF
-  fc-cache -fv && rm -rf \"\$TMP\"
-"
 sudo -u "$TARGET_USER" bash -lc "
   [[ -d ~/.icons/Dracula-cursors ]] || mkdir -p ~/.icons
   curl -L https://github.com/dracula/gtk/releases/latest/download/Dracula-cursors.tar.xz \
     | tar -xJf - -C ~/.icons
 "
 
+
 ### 7. Wallpapers ─────────────────────────────────────────────────────────────
-sudo -u "$TARGET_USER" bash -lc "
-  [[ -d ~/Pictures/wallpapers ]] || git clone https://github.com/f-klement/wallpapers.git ~/Pictures/wallpapers
-"
+[[ -d /home/$TARGET_USER/Pictures/wallpapers ]] || \
+  git clone https://github.com/f-klement/wallpapers.git /home/$TARGET_USER/Pictures/wallpapers
 
 ### 8. Default applications ───────────────────────────────────────────────────
-XDG_CFG="/home/$TARGET_USER/.config"
-sudo -u "$TARGET_USER" mkdir -p "$XDG_CFG"
-
-# VSCodium as editor
-for mime in text/plain text/x-python text/x-shellscript; do
-  sudo -u "$TARGET_USER" XDG_CONFIG_HOME="$XDG_CFG" \
-    xdg-mime default com.vscodium.codium.desktop "$mime"
-done
-
-# Brave as browser
-sudo -u "$TARGET_USER" XDG_CONFIG_HOME="$XDG_CFG" \
-  xdg-settings set default-web-browser com.brave.Browser.desktop
-for scheme in http https; do
-  sudo -u "$TARGET_USER" XDG_CONFIG_HOME="$XDG_CFG" \
-    xdg-mime default com.brave.Browser.desktop x-scheme-handler/$scheme
-done
-
-# Kitty as terminal
+ sudo -u "$TARGET_USER" bash -lc '
+   set -e
+   XDG_CONFIG_HOME="$HOME/.config"
+   mkdir -p "$XDG_CONFIG_HOME"
+   # editor
+   for mime in text/plain text/x-python text/x-shellscript; do
+     xdg-mime default com.vscodium.codium.desktop "$mime"
+   done
+   # browser
+   xdg-settings set default-web-browser com.brave.Browser.desktop
+   for scheme in http https; do
+     xdg-mime default com.brave.Browser.desktop x-scheme-handler/$scheme
+   done
+   # media player
+   for type in video/mp4 video/x-matroska audio/mpeg audio/x-wav; do
+     xdg-mime default vlc.desktop "$type"
+   done
+ '
 if command -v kitty >/dev/null; then
-  alternatives --install /usr/bin/x-terminal-emulator x-terminal-emulator /usr/bin/kitty 50
-  alternatives --set x-terminal-emulator /usr/bin/kitty
+  sudo alternatives --install /usr/bin/x-terminal-emulator x-terminal-emulator /usr/bin/kitty 50
+  sudo alternatives --set x-terminal-emulator /usr/bin/kitty
 fi
 
-# VLC as media player
-for type in video/mp4 video/x-matroska audio/mpeg audio/x-wav; do
-  sudo -u "$TARGET_USER" XDG_CONFIG_HOME="$XDG_CFG" \
-    xdg-mime default vlc.desktop "$type"
-done
-
-echo "✔ Fedora 42 Wayland + Qtile bootstrap complete!  Log into the “Qtile (Wayland)” session and enjoy."
+echo "✔ Fedora 42 Wayland + Qtile bootstrap complete, use GNU stow and enjoy!"

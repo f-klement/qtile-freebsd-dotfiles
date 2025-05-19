@@ -165,21 +165,23 @@ skip_if_installed rofi bash -lc "
 "
 
 # 5.6 fonts & cursors
-skip_if_installed fc-cache bash -lc "
-  set -e
-  tmp=\$(mktemp -d)
-  curl -L https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip -o \"\$tmp/jbm.zip\"
-  mkdir -p /usr/local/share/fonts/JetBrainsMonoNF
-  unzip -u \"\$tmp/jbm.zip\" -d /usr/local/share/fonts/JetBrainsMonoNF
-  fc-cache -fv
-  rm -rf \"\$tmp\"
+sudo bash -lc "
+  [[ -d /usr/local/share/fonts/JetBrainsMonoNF ]] || (
+    mkdir -p /usr/local/share/fonts/JetBrainsMonoNF
+    TMP=\$(mktemp -d)
+    curl -L https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip \
+      -o \"\$TMP/jbm.zip\"
+    unzip -u \"\$TMP/jbm.zip\" -d /usr/local/share/fonts/JetBrainsMonoNF
+    rm -rf \"\$TMP\"
+    fc-cache -fv
+  )
 "
 
-[[ -d ~/.icons/Dracula-cursors ]] || \
-  mkdir -p ~/.icons && \
+sudo -u "$TARGET_USER" bash -lc "
+  [[ -d ~/.icons/Dracula-cursors ]] || mkdir -p ~/.icons
   curl -L https://github.com/dracula/gtk/releases/latest/download/Dracula-cursors.tar.xz \
     | tar -xJf - -C ~/.icons
-
+"
 # 5.7 direnv (misc utils)
 skip_if_installed direnv bash -l <<'EOF'
 set -e
@@ -217,8 +219,8 @@ skip_if_installed picom bash -lc "
 dnf -y remove xcompmgr || true
 
 # Wallpapers
-[[ -d ~/Pictures/wallpapers ]] || \
-  git clone https://github.com/f-klement/wallpapers.git ~/Pictures/wallpapers
+[[ -d /home/$TARGET_USER/Pictures/wallpapers ]] || \
+  git clone https://github.com/f-klement/wallpapers.git /home/$TARGET_USER/Pictures/wallpapers
   
 ### 7. Default applications
 mkdir -p /home/$TARGET_USER/.config
