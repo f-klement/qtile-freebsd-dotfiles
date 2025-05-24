@@ -4,6 +4,8 @@
 # it includes qtile-x11, picom, various WM utilities, python3.12, a collection of 
 # additional repos, snap and flatpak versions of the most heavily used everyday 
 # applications to keep them as up-to-date as possible.
+# this is still quite volatile, as wlroots and mesa are in some versioning conflict 
+# and don't work well together making the bootup difficult.
 
 set -euo pipefail
 
