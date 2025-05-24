@@ -90,7 +90,7 @@ EOF
 
 ### 3. Runtime packages, utilities & placeholder compositor ────────────────────────────────
 dnf -y install \
-  btop gnome-keyring-pam polkit-gnome copyq network-manager-applet \
+  btop gnome-keyring-pam  polkit-kde-agent-1 polkit-gnome copyq network-manager-applet \
   redshift i3lock pulseaudio-utils pavucontrol bluez bluez-libs \
   python3-dbus acpid kitty vlc xcompmgr
 

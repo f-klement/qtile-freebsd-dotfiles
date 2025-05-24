@@ -47,13 +47,19 @@ sudo -iu "$TARGET_USER" flatpak remote-add --if-not-exists \
 
 ### 3. Qtile (Wayland dev libs + XWayland fallback) ─────────────────────────────
 dnf install -y \
-  python3 python3.12 python3-devel python3-pip python3-gobject \
+  python3 python3.12 polkit-kde-agent-1 python3-devel python3-pip python3-gobject \
   libffi-devel cairo cairo-devel pango pango-devel gobject-introspection-devel \
   wayland-devel wayland-protocols-devel libinput-devel \
   libxkbcommon-devel spice-vdagent python3-cffi \
   fontawesome-fonts open-vm-tools open-vm-tools-desktop \
   python3-dbus libinput-devel acpid python3.12-devel \
-  xorg-x11-server-Xwayland    # for XWayland apps
+  xorg-x11-server-Xwayland hwdata-devel
+  libdrm-devel \
+  libudev-devel \
+  libgbm-devel \
+  mesa-libEGL-devel \
+  libxkbcommon-devel  \
+  mesa-libGLES-devel
 pip install xkbcommon
 
 ## build dependencies ────────────────────────────────────────
@@ -67,34 +73,36 @@ skip_if_installed wlroots bash -lc "
 cd /tmp
 git clone https://gitlab.freedesktop.org/wlroots/wlroots.git
 cd wlroots
-meson setup build --wrap-mode=forcefallback --prefix=/usr/local
+# Export CFLAGS to turn off -Werror for packed attributes (and more)
+export CFLAGS="-Wno-error=packed -Wno-error"
+meson setup build \
+  --prefix=/usr/local \
+  -Dbackends=drm,libinput,x11 \
+  --wrap-mode=forcefallback
 ninja -C build
 sudo ninja -C build install
 "
 skip_if_installed seatd bash -lc "
-cd /tmp
-git clone https://git.sr.ht/~kennylevinsen/seatd
-cd seatd
-meson setup build --prefix=/usr/local
-ninja -C build
-ninja -C build install
-
 sudo tee /etc/systemd/system/seatd.service > /dev/null <<'EOF'
 [Unit]
-Description=seatd - Minimal seat management daemon
+Description=seatd daemon
 After=systemd-logind.service
 Requires=systemd-logind.service
 
 [Service]
-ExecStart=/usr/local/bin/seatd
-Restart=on-failure
+ExecStart=/usr/local/bin/seatd -g seat
+Restart=always
 User=root
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-systemctl enable --now seatd
+sudo systemctl enable --now seatd
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+sudo systemctl restart seatd
+
 sudo groupadd -f seat
 sudo usermod -aG seat $TARGET_USER
 newgrp seat
@@ -138,7 +146,7 @@ cat <<EOF | sudo tee /usr/share/wayland-sessions/qtile.desktop > /dev/null
 [Desktop Entry]
 Name=Qtile (Wayland)
 Comment=Qtile Wayland session (user venv)
-Exec=/home/$TARGET_USER/.local/venvs/qtile/bin/dbus-run-session qtile start -b wayland
+Exec=/home/$TARGET_USER/.local/venvs/qtile/bin/qtile start -b wayland
 Type=Application
 DesktopNames=qtile
 Keywords=wm;tiling;windowmanager;wayland

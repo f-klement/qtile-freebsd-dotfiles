@@ -10,7 +10,7 @@ mako &
 eval "$(gnome-keyring-daemon --start --components=pkcs11,secrets,ssh,gpg)"
 
 # ── Policy-kit agent (package name: polkit-gnome) ────────────────────────
-/usr/libexec/polkit-gnome-authentication-agent-1 &
+polkit-kde-agent-1 &
 gsettings set org.gnome.desktop.interface gtk-theme Adwaita:dark
 # ── Set Session Variables and Theming ────────────────────────────────────────────────
 
@@ -42,6 +42,7 @@ export GTK_THEME=Adwaita:dark
 export QTILE_CHECK_SKIP_STUBS=1
 export XCURSOR_THEME="Dracula"
 export XCURSOR_SIZE="24"
+export WLR_RENDERER=vulkan
 
 # wallpaper service
 # swaybg: change wallpaper randomly every 5 minutes

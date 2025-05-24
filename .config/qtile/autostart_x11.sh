@@ -10,7 +10,7 @@ export PATH="/usr/local/bin:$PATH"
 eval "$(gnome-keyring-daemon --start --components=pkcs11,secrets,ssh,gpg)"
 
 # ── Policy-kit agent (package name: polkit-gnome) ────────────────────────
-/usr/libexec/polkit-gnome-authentication-agent-1 &
+polkit-kde-agent-1 &
 gsettings set org.gnome.desktop.interface gtk-theme Adwaita:dark
 # ── Set Session Variables and Theming ────────────────────────────────────────────────
 

@@ -47,7 +47,7 @@ sudo -iu "$TARGET_USER" flatpak remote-add --if-not-exists \
 
 ### 3. Qtile (Wayland dev libs + XWayland fallback) ─────────────────────────────
 dnf install -y \
-  python3 python3.12 python3-devel python3-pip python3-gobject \
+  python3 python3.12 python3-devel polkit-kde-agent-1 python3-pip python3-gobject \
   libffi-devel cairo cairo-devel pango pango-devel gobject-introspection-devel \
   wayland-devel wayland-protocols-devel libinput-devel libseat-devel \
   libxkbcommon-devel spice-vdagent python3-cffi wlroots \

@@ -62,7 +62,7 @@ sudo -iu "$TARGET_USER" flatpak remote-add --if-not-exists \
 
 ### 2. QTile X11 (per-user venv under Python 3.12) ───────────────────────────────
 dnf -y install \
-  python3.12 python3.12-devel python3-devel python3-gobject python3-pip \
+  python3.12 python3.12-devel polkit-kde-agent-1 python3-devel python3-gobject python3-pip \
   libffi-devel cairo cairo-devel pango pango-devel gobject-introspection-devel \
   libXScrnSaver-devel spice-vdagent libxkbcommon libxkbcommon-devel \
   xcb-util-keysyms-devel xcb-util-wm-devel xcb-util-devel libXcursor-devel \
