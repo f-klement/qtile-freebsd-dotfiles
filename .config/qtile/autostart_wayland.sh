@@ -2,7 +2,7 @@
 
 export PATH="/usr/local/bin:$PATH"
 wlr-randr --output Virtual-1 --mode 1920x1200@60
-
+/usr/local/bin/seatd -g seat
 # Start notification daemon
 mako &
 

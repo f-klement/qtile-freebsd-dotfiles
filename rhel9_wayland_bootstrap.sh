@@ -98,6 +98,9 @@ systemctl enable --now seatd
 sudo groupadd -f seat
 sudo usermod -aG seat $TARGET_USER
 newgrp seat
+sudo usermod -aG video $TARGET_USER
+newgrp video
+
 "
 
 ### 3.1 Qtile network header dependency ─────────────────────
@@ -131,13 +134,14 @@ pip install \
 pip install qtile[all]
 EOF
 
-cat >/usr/share/wayland-sessions/qtile-w.desktop <<EOF
+cat <<EOF | sudo tee /usr/share/wayland-sessions/qtile.desktop > /dev/null
 [Desktop Entry]
 Name=Qtile (Wayland)
-Comment=Qtile Tiling Window Manager (via XWayland + native Wayland libs)
-Exec=/home/$TARGET_USER/.local/venvs/qtile/bin/qtile start -b wayland
+Comment=Qtile Wayland session (user venv)
+Exec=/home/$TARGET_USER/.local/venvs/qtile/bin/dbus-run-session qtile start -b wayland
 Type=Application
-Keywords=wm;tiling;wayland
+DesktopNames=qtile
+Keywords=wm;tiling;windowmanager;wayland
 EOF
 
 ### 4. Runtime packages & Wayland utilities ────────────────────────────────────
