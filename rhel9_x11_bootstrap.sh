@@ -4,8 +4,6 @@
 # it includes qtile-x11, picom, various WM utilities, python3.12, a collection of 
 # additional repos, snap and flatpak versions of the most heavily used everyday 
 # applications to keep them as up-to-date as possible.
-# this is still quite volatile, as wlroots and mesa are in some versioning conflict 
-# and don't work well together making the bootup difficult.
 
 set -euo pipefail
 
@@ -85,7 +83,7 @@ cat >/usr/share/xsessions/qtile.desktop <<'EOF'
 [Desktop Entry]
 Name=Qtile
 Comment=Qtile Tiling Window Manager (Python 3.12, X11)
-Exec=/home/$TARGET_USER/.local/venvs/qtile/bin/qtile start
+Exec=/home/$TARGET_USER/.local/venvs/qtile/bin/qtile start -b x11
 Type=Application
 Keywords=wm;tiling
 EOF

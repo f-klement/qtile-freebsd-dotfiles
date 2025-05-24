@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #
-# install-fedora42-wayland.sh ─ one-shot bootstrap for a fresh Fedora 42 Wayland setup
+# one-shot bootstrap for a fresh rhel 9 qtile Wayland setup
+# this is still quite volatile, as wlroots and mesa are in some versioning conflict 
+# and don't work well together making the bootup difficult.
 set -euo pipefail
 
 ### 0. Sanity check ─────────────────────────────────────────────────────────────
