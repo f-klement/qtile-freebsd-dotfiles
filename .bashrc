@@ -5,7 +5,8 @@
 # If not running interactively, don't do anything
 [ -z "$PS1" ] && return
 
-export PATH="/usr/local/bin:$PATH"
+export PATH="/usr/local/bin:$HOME/.local/bin:$PATH"
+
 
 # don't put duplicate lines or lines starting with space in the history.
 # See bash(1) for more options
@@ -88,6 +89,8 @@ alias qcheck='~/.local/venvs/qtile/bin/qtile check'
 alias qconf='vim ~/.config/qtile/config.py'
 alias qvalid='( source ~/.local/venvs/qtile/bin/activate && qtile check )'
 alias qlogs='tail -f ~/.local/share/qtile/qtile.log'
+alias qstart='~/.local/venvs/qtile/bin/qtile start'
+
 
 # Alias definitions.
 # You may want to put all your additions into a separate file like

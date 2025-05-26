@@ -49,7 +49,27 @@ export XCURSOR_SIZE="24"
 picom -b --config ~/.config/picom/picom.conf
 
 # wallpaper service
-variety --resume &
+feh_random() {
+  # directory containing your wallpapers (and subfolders)
+  local dir=~/Pictures/Wallpapers
+
+  # find all .jpg/.png files, pick one at random
+  local file
+  file=$(find "$dir" -type f \( -iname '*.jpg' -o -iname '*.png' \) | shuf -n1)
+
+  # set it as your background (fill mode)
+  feh --bg-fill "$file"
+}
+
+# initial wallpaper
+feh_random
+
+# every 300 seconds (5m), pick & set a new one
+(
+  while sleep 300; do
+    feh_random
+  done
+) &
 
 # screen-locker on suspend/idle (X11)
 # ── blank after 5 min ─────────────────────────────────────────────────────
@@ -59,5 +79,5 @@ xset s 300 -dpms
 # blank after 5 min
 xset s 300 -dpms
 # lock using our script
-xss-lock -- ~/.config/qtile/lock_with_random_bg_x11.sh &
+exec dbus-run-session --exit-with-session xss-lock -- ~/.config/qtile/lock_with_random_bg_x11.sh &
 

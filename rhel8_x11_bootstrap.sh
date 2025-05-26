@@ -62,12 +62,15 @@ sudo -iu "$TARGET_USER" flatpak remote-add --if-not-exists \
 
 ### 2. QTile X11 (per-user venv under Python 3.12) ───────────────────────────────
 dnf -y install \
-  python3.12 python3.12-devel polkit-kde-agent-1 python3-devel python3-gobject python3-pip \
+  python3.12 python3.12-devel polkit-kde python3-devel python3-gobject python3-pip \
   libffi-devel cairo cairo-devel pango pango-devel gobject-introspection-devel \
   libXScrnSaver-devel spice-vdagent libxkbcommon libxkbcommon-devel \
   xcb-util-keysyms-devel xcb-util-wm-devel xcb-util-devel libXcursor-devel \
   libXinerama-devel python3-pyopengl fontawesome-fonts open-vm-tools \
-  open-vm-tools-desktop
+  open-vm-tools-desktop adwaita-qt5 xorg-x11-server-Xorg \
+  xorg-x11-utils xorg-x11-apps xorg-x11-fonts-misc \
+  xorg-x11-drv-vmware xorg-x11-server-Xvfb xorg-x11-server-Xwayland
+
 
 sudo -iu "$TARGET_USER" bash <<EOF
 set -e
@@ -93,7 +96,7 @@ EOF
 dnf -y install \
   btop gnome-keyring-pam copyq network-manager-applet \
   redshift pulseaudio-utils pavucontrol bluez bluez-libs \
-  python3-dbus acpid kitty vlc xcompmgr
+  python3-dbus acpid kitty vlc xcompmgr powerline-fonts 
 
 
 ### 4. Flatpak GUI apps ───────────────────────────────────────────────────────
@@ -107,7 +110,8 @@ flatpak install --user -y flathub \
   io.gitlab.librewolf-community \
   com.brave.Browser \
   com.vscodium.codium \
-  com.github.tchx84.Flatseal
+  com.github.tchx84.Flatseal \
+  org.flameshot.Flameshot
 '
 
 ### 5. Builds from source ──────────────────────────────────────────────────────
@@ -154,7 +158,7 @@ skip_if_installed i3lock bash -lc "
 #modern meson and ninja calls:
 # 0) create + activate a Python 3.12 venv for Meson
 python3.12 -m venv /tmp/meson-venv
-/tmp/meson-venv/bin/pip install --upgrade meson>=0.60.0 ninja
+/tmp/meson-venv/bin/pip install --upgrade meson>=0.60.0 ninja packaging
 
 skip_if_installed dunst bash -lc "
   set -euo pipefail
@@ -207,20 +211,7 @@ skip_if_installed xss-lock bash -lc "
   make -j$(nproc)
   make install
 "
-
-# 5.3 variety
-skip_if_installed variety bash -lc "
-  set -e
-  [ -d /tmp/variety ] && rm -rf /tmp/variety
-  git clone https://github.com/varietywalls/variety.git /tmp/variety
-  dnf -y config-manager --set-enabled epel-testing
-  dnf -y install python3-distutils-extra python3-pillow imlib2-devel libcurl-devel libXt-devel
-  dnf -y install python3-beautifulsoup4 python3-feedparser python3-requests python3-lxml python3-configobj python3-httplib2
-  cd /tmp/variety
-  python3.6 setup.py install
-"
-
-# 5.4 feh (variety dependency)
+# 5.3 feh (variety dependency)
 skip_if_installed feh bash -lc "
   set -e
   [ -d /tmp/feh ] && rm -rf /tmp/feh
@@ -230,7 +221,7 @@ skip_if_installed feh bash -lc "
   make install app=1
 "
 
-# 5.5 rofi
+# 5.4 rofi
 skip_if_installed rofi bash -lc "
   set -e
   [ -d /tmp/rofi ] && rm -rf /tmp/rofi
@@ -247,7 +238,7 @@ skip_if_installed rofi bash -lc "
   /tmp/meson-venv/bin/ninja -C build install
 "
 
-# 5.6 fonts & cursors
+# 5.5 fonts & cursors
 sudo bash -lc "
   [[ -d /usr/local/share/fonts/JetBrainsMonoNF ]] || (
     mkdir -p /usr/local/share/fonts/JetBrainsMonoNF
@@ -265,13 +256,13 @@ sudo -u "$TARGET_USER" bash -lc "
   curl -L https://github.com/dracula/gtk/releases/latest/download/Dracula-cursors.tar.xz \
     | tar -xJf - -C ~/.icons
 "
-# 5.7 direnv (misc utils)
+# 5.6 direnv (misc utils)
 skip_if_installed direnv bash -l <<'EOF'
 set -e
 curl -sfL https://direnv.net/install.sh | bash
 EOF
 
-# 5.8 lxappearance
+# 5.7 lxappearance
 skip_if_installed lxappearance bash -lc "
   set -e
   dnf -y install gtk2-devel glib2-devel
