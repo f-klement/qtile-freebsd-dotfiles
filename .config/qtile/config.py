@@ -190,7 +190,7 @@ def power_menu(qtile):
         "--center --on-top --no-markup --undecorated); "
         "code=$?; "
         "if [ \"$code\" -eq 0 ]; then systemctl poweroff; "
-        "elif [ \"$code\" -eq 1 ]; then loginctl reboot; fi'"
+        "elif [ \"$code\" -eq 1 ]; then systemctl reboot; fi'"
     )
 
 # ──────────────────────────────────────────────────────────────────────────

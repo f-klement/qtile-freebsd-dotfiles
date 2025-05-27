@@ -18,24 +18,20 @@ fi
 gsettings set org.gnome.desktop.interface gtk-theme Adwaita:dark
 # ── Set Session Variables and Theming ────────────────────────────────────────────────
 
-if [ ! -f /tmp/qtile_autostart_done ]; then
-  # Set XDG_CURRENT_DESKTOP
-  xprop -root -set _NET_WM_DESKTOP_ENVIRONMENT "Qtile"
-  touch /tmp/qtile_autostart_done
-fi
+# Set XDG_CURRENT_DESKTOP
+xprop -root -set _NET_WM_DESKTOP_ENVIRONMENT "Qtile"
 
-if [ ! -f /tmp/qtile_darkmode_set ]; then
-  # For GTK applications
-  export GTK_THEME=Adwaita:dark 
-  export XDG_CURRENT_DESKTOP=Qtile
-  export DESKTOP_SESSION=qtile
-  flatpak override --user --env=GTK_THEME=Adwaita:dark
-  export GTK_APPLICATION_PREFERENCES=prefer-dark-theme=1
-  # For Qt applications (Qt 5 and 6)
-  export QT_STYLE_OVERRIDE=adwaita-dark # 
-  export QT_QPA_PLATFORMTHEME="qt5ct" #
-  touch /tmp/qtile_darkmode_set
-fi
+# For GTK applications
+export GTK_THEME=Adwaita:dark 
+export XDG_CURRENT_DESKTOP=Qtile
+export DESKTOP_SESSION=qtile
+flatpak override --user --env=GTK_THEME=Adwaita:dark
+export GTK_APPLICATION_PREFERENCES=prefer-dark-theme=1
+# For Qt applications (Qt 5 and 6)
+export QT_STYLE_OVERRIDE=adwaita-dark # 
+export QT_QPA_PLATFORMTHEME=qt5ct #
+
+
 
 # ── Tray apps ────────────────────────────────────────────────────────────
 nm-applet &
@@ -54,6 +50,7 @@ export XCURSOR_SIZE="24"
 
 # compositor for transparency/shadows (X11 sessions)
 #picom -b --config ~/.config/picom/picom.conf
+#buggy on all backends
 
 # wallpaper service
 feh_random() {
