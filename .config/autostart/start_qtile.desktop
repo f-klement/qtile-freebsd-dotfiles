@@ -1,0 +1,10 @@
+# ~/.config/autostart/start_qtile.desktop
+[Desktop Entry]
+Type=Application
+Exec=/home/admin/bin/starting-qtile.sh
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Start Qtile
+Comment=Start Qtile window manager after GNOME session login
+

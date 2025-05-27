@@ -23,6 +23,9 @@ fi
 if [ ! -f /tmp/qtile_darkmode_set ]; then
   # For GTK applications
   export GTK_THEME=Adwaita:dark 
+  export XDG_CURRENT_DESKTOP=Qtile
+  export DESKTOP_SESSION=qtile
+  flatpak override --user --env=GTK_THEME=Adwaita:dark
   export GTK_APPLICATION_PREFERENCES=prefer-dark-theme=1
   # For Qt applications (Qt 5 and 6)
   export QT_STYLE_OVERRIDE=adwaita-dark # 
@@ -46,12 +49,12 @@ export XCURSOR_THEME="Dracula"
 export XCURSOR_SIZE="24"
 
 # compositor for transparency/shadows (X11 sessions)
-picom -b --config ~/.config/picom/picom.conf
+#picom -b --config ~/.config/picom/picom.conf
 
 # wallpaper service
 feh_random() {
   # directory containing your wallpapers (and subfolders)
-  local dir=~/Pictures/Wallpapers
+  local dir=~/Pictures/wallpapers
 
   # find all .jpg/.png files, pick one at random
   local file

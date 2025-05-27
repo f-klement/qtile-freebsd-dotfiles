@@ -68,7 +68,7 @@ dnf -y install \
   xcb-util-keysyms-devel xcb-util-wm-devel xcb-util-devel libXcursor-devel \
   libXinerama-devel python3-pyopengl fontawesome-fonts open-vm-tools \
   open-vm-tools-desktop adwaita-qt5 xorg-x11-server-Xorg \
-  xorg-x11-utils xorg-x11-apps xorg-x11-fonts-misc \
+  xorg-x11-utils xorg-x11-apps xorg-x11-fonts-misc yad qt5ct \
   xorg-x11-drv-vmware xorg-x11-server-Xvfb xorg-x11-server-Xwayland
 
 
@@ -239,17 +239,28 @@ skip_if_installed rofi bash -lc "
 "
 
 # 5.5 fonts & cursors
-sudo bash -lc "
-  [[ -d /usr/local/share/fonts/JetBrainsMonoNF ]] || (
-    mkdir -p /usr/local/share/fonts/JetBrainsMonoNF
-    TMP=\$(mktemp -d)
-    curl -L https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip \
-      -o \"\$TMP/jbm.zip\"
-    unzip -u \"\$TMP/jbm.zip\" -d /usr/local/share/fonts/JetBrainsMonoNF
-    rm -rf \"\$TMP\"
+FONT_NAME="JetBrainsMono Nerd Font"
+FONT_DIR="$TARGET_USER/.local/share/fonts"
+FONT_ZIP="JetBrainsMono.zip"
+FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/$FONT_ZIP"
+
+# Check if the font is already installed
+if fc-list | grep -qi "$FONT_NAME"; then
+    echo "✅ '$FONT_NAME' is already installed. Skipping download."
+else
+    echo "⬇️  Installing '$FONT_NAME'..."
+    mkdir -p "$FONT_DIR"
+    cd "$FONT_DIR" || exit 1
+
+    wget "$FONT_URL" -O "$FONT_ZIP"
+    unzip -o "$FONT_ZIP"
+    rm "$FONT_ZIP"
+
+    echo "🔁 Rebuilding font cache..."
     fc-cache -fv
-  )
-"
+
+    echo "✅ '$FONT_NAME' installed successfully."
+fi
 
 sudo -u "$TARGET_USER" bash -lc "
   [[ -d ~/.icons/Dracula-cursors ]] || mkdir -p ~/.icons

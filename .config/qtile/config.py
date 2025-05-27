@@ -179,6 +179,20 @@ def toggle_vol_text(qtile):
     w = qtile.widgets_map["pulsevolume"]
     w.fmt = "" if w.fmt.endswith("{}") else " {}"   # no percent sign
     w.bar.draw()
+    
+@lazy.function
+def power_menu(qtile):
+    qtile.cmd_spawn(
+        "bash -c '"
+        "choice=$(GTK_THEME=Adwaita:dark yad --width=200 --height=50 "
+        "--title=\"Power Menu\" "
+        "--button=\"Shutdown:0\" --button=\"Reboot:1\" "
+        "--center --on-top --no-markup --undecorated); "
+        "code=$?; "
+        "if [ \"$code\" -eq 0 ]; then systemctl poweroff; "
+        "elif [ \"$code\" -eq 1 ]; then systemctl reboot; fi'"
+    )
+
 # ──────────────────────────────────────────────────────────────────────────
 
 def init_widgets():
@@ -242,10 +256,13 @@ def init_widgets():
         ),
         widget.CPU(foreground = colors[4],format=" {load_percent:>3}%", update_interval=2),
         widget.Systray(icon_size=12, padding=2),
-        widget.QuickExit(
-            default_text="⏻",
-            countdown_format="⏻ ({}s)",
+        widget.TextBox(
+            text="⏻",
             padding=6,
+            fontsize=16,
+            mouse_callbacks={
+                 "Button1": power_menu
+            }
         ),
         widget.Spacer(length=4),
     ]
