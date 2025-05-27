@@ -8,9 +8,13 @@ export PATH="/usr/local/bin:$PATH"
 
 # ── Keyring (run *before* any app that needs secrets) ────────────────────
 eval "$(gnome-keyring-daemon --start --components=pkcs11,secrets,ssh,gpg)"
+export SSH_AUTH_SOCK
 
 # ── Policy-kit agent (package name: polkit-gnome) ────────────────────────
-polkit-kde-agent-1 &
+# KDE Polkit agent (works with Qtile)
+if [ -x /usr/libexec/polkit-kde-authentication-agent-1 ]; then
+    /usr/libexec/polkit-kde-authentication-agent-1 &
+fi
 gsettings set org.gnome.desktop.interface gtk-theme Adwaita:dark
 # ── Set Session Variables and Theming ────────────────────────────────────────────────
 
