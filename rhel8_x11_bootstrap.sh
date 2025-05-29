@@ -111,7 +111,8 @@ flatpak install --user -y flathub \
   com.brave.Browser \
   com.vscodium.codium \
   com.github.tchx84.Flatseal \
-  org.flameshot.Flameshot
+  org.flameshot.Flameshot \
+  md.obsidian.Obsidian
 '
 
 ### 5. Builds from source ──────────────────────────────────────────────────────
@@ -348,8 +349,18 @@ dnf -y remove xcompmgr || true
 # Wallpapers
 [[ -d /home/$TARGET_USER/Pictures/wallpapers ]] || \
   git clone https://github.com/f-klement/wallpapers.git /home/$TARGET_USER/Pictures/wallpapers
+
+### 7. Node
+# pulling from node source, overwriting crusty rhel version
+curl -fsSL https://rpm.nodesource.com/setup_22.x -o nodesource_setup.sh
+sudo -E bash nodesource_setup.sh
+dnf module reset nodejs -y
+dnf module disable nodejs -y
+dnf remove nodejs npm -y
+dnf install nodejs -y
+
   
-### 7. Default applications
+### 8. Default applications
 mkdir -p /home/$TARGET_USER/.config
 # Flatpak VSCodium as default editor (for $TARGET_USER)
 sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default com.vscodium.codium.desktop text/plain
