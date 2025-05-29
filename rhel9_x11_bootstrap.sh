@@ -90,7 +90,7 @@ EOF
 
 ### 3. Runtime packages, utilities & placeholder compositor ────────────────────────────────
 dnf -y install \
-  btop gnome-keyring-pam  polkit-kde-agent-1 polkit-gnome copyq network-manager-applet \
+  btop gnome-keyring-pam  polkit-kde polkit-gnome copyq network-manager-applet \
   redshift i3lock pulseaudio-utils pavucontrol bluez bluez-libs \
   python3-dbus acpid kitty vlc xcompmgr
 
@@ -202,6 +202,19 @@ skip_if_installed lxappearance bash -lc "
   make install
 "
 
+# 5.9 yad
+skip_if_installed yad bash -lc "
+  set -e
+dnf install gcc gtk3-devel make intltool
+cd /tmp
+wget https://downloads.sourceforge.net/project/yad-dialog/yad-0.40.0.tar.xz
+
+tar -xf yad-0.40.0.tar.xz
+cd yad-0.40.0
+./configure
+make
+sudo make install
+"
 ### 6. Build-time deps & picom ────────────────────────────────────────────────
 skip_if_installed picom bash -lc "
   set -e
