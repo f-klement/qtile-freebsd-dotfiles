@@ -208,14 +208,13 @@ skip_if_installed picom bash -lc "
   [ -d /tmp/picom ] && rm -rf /tmp/picom
   dnf -y groupinstall 'Development Tools'
   dnf -y install dbus-devel libconfig-devel libev-devel libX11-devel libxcb-devel mesa-libGL-devel mesa-libEGL-devel libepoxy-devel meson ninja-build pcre2-devel pixman-devel uthash-devel xcb-util-image-devel xcb-util-renderutil-devel xcb-util-devel xorg-x11-proto-devel asciidoctor
-  git clone --depth=1 https://github.com/yshui/picom.git /tmp/picom
+  git clone --branch v11.2 --depth=1 https://github.com/yshui/picom.git /tmp/picom
   cd /tmp/picom
   [ -d build ] && rm -rf build
   meson setup --buildtype=release build
   ninja -C build
   ninja -C build install
 "
-
 dnf -y remove xcompmgr || true
 
 # Wallpapers

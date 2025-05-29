@@ -271,7 +271,7 @@ def init_widgets():
 # For ex: Screen(top=bar.Bar(widgets=init_widgets_screen2(), background="#00000000", size=24)),
 
 screens = [
-    Screen(top=bar.Bar(init_widgets(), 28, opacity=0.0, margin=[0, 0, 0, 0])),
+    Screen(top=bar.Bar(init_widgets(), 28, opacity=0.70, margin=[0, 0, 0, 0])),
 ]
 
 # drag floating window with Mod + left-click

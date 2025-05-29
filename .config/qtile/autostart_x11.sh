@@ -49,7 +49,7 @@ export XCURSOR_THEME="Dracula"
 export XCURSOR_SIZE="24"
 
 # compositor for transparency/shadows (X11 sessions)
-#picom -b --config ~/.config/picom/picom.conf
+picom -b --config ~/.config/picom/picom.conf
 #buggy on all backends
 
 # wallpaper service
