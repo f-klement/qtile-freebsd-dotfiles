@@ -39,6 +39,7 @@ terminal = "kitty"
 browser = "flatpak run com.brave.Browser"
 editor  = "flatpak run com.vscodium.codium"
 files = "nautilus"
+notes = "flatpak run md.obsidian.Obsidian"
 
 keys = [
     # A list of available commands that can be bound to keys can be found
@@ -72,6 +73,7 @@ keys = [
     Key([mod], "d", lazy.spawn(files),   desc="Launch file manager"),
     Key([mod, "mod1"], "space", lazy.spawn("/usr/local/bin/rofi -show drun"), desc="Launch rofi"), 
     Key([mod], "e", lazy.spawn(editor), desc="Launch VSCodium"),
+    Key([mod], "o", lazy.spawn(notes), desc="Launch Obsidian"),
     # Toggle between split and unsplit sides of stack.
     # Split = all windows displayed
     # Unsplit = 1 window displayed, like Max layout, but still with
