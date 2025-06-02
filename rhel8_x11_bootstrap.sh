@@ -68,7 +68,7 @@ dnf -y install \
   xcb-util-keysyms-devel xcb-util-wm-devel xcb-util-devel libXcursor-devel \
   libXinerama-devel python3-pyopengl fontawesome-fonts open-vm-tools \
   open-vm-tools-desktop adwaita-qt5 xorg-x11-server-Xorg \
-  xorg-x11-utils xorg-x11-apps xorg-x11-fonts-misc yad qt5ct \
+  xorg-x11-utils xorg-x11-apps ranger xorg-x11-fonts-misc yad qt5ct \
   xorg-x11-drv-vmware xorg-x11-server-Xvfb xorg-x11-server-Xwayland
 
 
@@ -332,16 +332,15 @@ skip_if_installed picom bash -lc "
 
   # 3. Clone, build & install picom
   [ -d /tmp/picom ] && rm -rf /tmp/picom
-  git clone --depth=1 https://github.com/yshui/picom.git /tmp/picom
+  git clone --branch v11.2 --depth=1 https://github.com/yshui/picom.git /tmp/picom
   cd /tmp/picom
   [ -d build ] && rm -rf build
-
-  /usr/local/bin/meson setup build \
+  /tmp/meson-venv/bin/meson setup build \
     --prefix=/usr \
     -Dbuildtype=release \
     -Dwerror=false
-  /usr/local/bin/ninja -C build
-  sudo /usr/local/bin/ninja -C build install
+ /tmp/meson-venv/bin/ninja -C build
+  sudo /tmp/meson-venv/bin/ninja -C build install
 "
 
 dnf -y remove xcompmgr || true

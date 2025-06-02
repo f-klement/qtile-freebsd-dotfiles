@@ -10,6 +10,12 @@ export ZSH="/home/admin/.oh-my-zsh"
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
 ZSH_THEME="robbyrussell"
 
+# direnv: load in and out environment when you cd
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook zsh)"
+fi
+
+
 # Set list of themes to pick from when loading at random
 # Setting this variable when ZSH_THEME=random will cause zsh to load
 # a theme from this variable instead of looking in $ZSH/themes/
@@ -154,6 +160,8 @@ alias qconf='vim ~/.config/qtile/config.py'
 alias qvalid='( source ~/.local/venvs/qtile/bin/activate && qtile check )'
 alias qlogs='tail -f ~/.local/share/qtile/qtile.log'
 alias qstart='~/.local/venvs/qtile/bin/qtile start'
+alias dc='docker compose'
+alias denv='nano ./.env'
 
 # 9) ex – archive extractor
 ex() {
