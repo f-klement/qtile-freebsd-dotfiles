@@ -3,6 +3,21 @@
 
 # Path to your oh-my-zsh installation.
 export ZSH="/home/admin/.oh-my-zsh"
+export PATH="$PATH:/bin:/usr/bin"
+
+# VS Codium Flatpak Fixes
+if [[ "$TERM_PROGRAM" == "vscodium" ]]; then
+  # Ensure critical paths
+  export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+  alias sudo='sudo -S'  
+  # Initialize direnv
+  if command -v direnv &> /dev/null; then
+    eval "$(direnv hook zsh)"
+  fi
+fi
+
+# Rest of your normal configuration...
+
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -154,6 +169,7 @@ alias la='ls -a'
 alias l='ls -CF'
 alias ls='ls --color=auto -a'
 
+alias dnfu='sudo -S dnf update && sudo -S flatpak update && sudo snap refresh'
 alias qenv='source ~/.local/venvs/qtile/bin/activate'
 alias qcheck='~/.local/venvs/qtile/bin/qtile check'
 alias qconf='vim ~/.config/qtile/config.py'

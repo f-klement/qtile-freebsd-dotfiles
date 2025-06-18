@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 import os
-import colors
+import colors as color_mod
 import subprocess
 from zoneinfo import ZoneInfo 
 from libqtile import bar, layout, qtile, widget, hook
@@ -41,7 +41,7 @@ editor  = "flatpak run com.vscodium.codium"
 files = "nautilus"
 notes = "flatpak run md.obsidian.Obsidian"
 
-keys = [
+keys = [ 
     # A list of available commands that can be bound to keys can be found
     # at https://docs.qtile.org/en/latest/manual/config/lazy.html
     # Switch between windows
@@ -68,7 +68,7 @@ keys = [
     Key([mod, "mod1"], "Up",    lazy.window.move_floating( 0, -40), desc="Nudge floating window up"),
     Key([mod, "mod1"], "Down",  lazy.window.move_floating( 0, 40),  desc="Nudge floating window down"),    
     Key([mod], "n", lazy.layout.normalize(), desc="Reset all window sizes"),
-    # new launch shortcuts
+     # new launch shortcuts
     Key([mod], "b", lazy.spawn(browser), desc="Launch browser"),
     Key([mod], "d", lazy.spawn(files),   desc="Launch file manager"),
     Key([mod, "mod1"], "space", lazy.spawn("/usr/local/bin/rofi -show drun"), desc="Launch rofi"), 
@@ -98,6 +98,7 @@ keys = [
     Key([mod, "control"], "r", lazy.reload_config(), desc="Reload the config"),
     Key([mod, "control"], "q", lazy.shutdown(), desc="Shutdown Qtile"),
     Key([mod], "r", lazy.spawncmd(prompt="Run: "), desc="Spawn a command"),
+    Key([mod],"Tab", lazy.next_screen(), desc='Next monitor'),
 ]
 
 # Add key bindings to switch VTs in Wayland.
@@ -113,39 +114,84 @@ for vt in range(1, 8):
         )
     )
 
+groups = [
+   Group(name="1", screen_affinity=0),
+   Group(name="2", screen_affinity=1),
+   Group(name="3", screen_affinity=0),
+   Group(name="4", screen_affinity=1),
+   Group(name="5", screen_affinity=0),
+   Group(name="6", screen_affinity=1),
+   Group(name="7", screen_affinity=0),
+   Group(name="8", screen_affinity=1),
+   Group(name="9", screen_affinity=0),
+]
 
-groups = [Group(i) for i in "123456789"]
+def go_to_group(name: str):
+   def _inner(qtile):
+       if len(qtile.screens) == 1:
+           qtile.groups_map[name].toscreen()
+           return
+
+       if name in '13579':
+           qtile.focus_screen(0)
+           qtile.groups_map[name].toscreen()
+       else:
+           qtile.focus_screen(1)
+           qtile.groups_map[name].toscreen()
+   return _inner
 
 for i in groups:
-    keys.extend(
-        [
-            # mod + group number = switch to group
-            Key(
-                [mod],
-                i.name,
-                lazy.group[i.name].toscreen(),
-                desc=f"Switch to group {i.name}",
-            ),
-            # mod + shift + group number = switch to & move focused window to group
-            Key(
-                [mod, "shift"],
-                i.name,
-                lazy.window.togroup(i.name, switch_group=True),
-                desc=f"Switch to & move focused window to group {i.name}",
-            ),
-            # Or, use below if you prefer not to switch to that group.
-            # # mod + shift + group number = move focused window to group
-            # Key([mod, "shift"], i.name, lazy.window.togroup(i.name),
-            #     desc="move focused window to group {}".format(i.name)),
-        ]
-    )
+   keys.append(
+       Key(
+           [mod, "shift"],
+           i.name,
+           lazy.window.togroup(i.name, switch_group=True),
+           desc=f"Move window to group {i.name}",
+       )
+   )
 
-colors = colors.DoomOne
+for i in groups:
+   keys.append(
+       Key(
+           [mod],
+           i.name,
+           lazy.function(go_to_group(i.name)),
+           desc=f"Switch to group {i.name}",
+       )
+   )
 
+#     groups = [Group(i) for i in "123456789"]
+
+# for i in groups:
+#     keys.extend(
+#         [
+#             # mod + group number = switch to group
+#             Key(
+#                 [mod],
+#                 i.name,
+#                 lazy.group[i.name].toscreen(),
+#                 desc=f"Switch to group {i.name}",
+#             ),
+#             # mod + shift + group number = switch to & move focused window to group
+#             Key(
+#                 [mod, "shift"],
+#                 i.name,
+#                 lazy.window.togroup(i.name, switch_group=True),
+#                 desc=f"Switch to & move focused window to group {i.name}",
+#             ),
+#             # Or, use below if you prefer not to switch to that group.
+#             # # mod + shift + group number = move focused window to group
+#             # Key([mod, "shift"], i.name, lazy.window.togroup(i.name),
+#             #     desc="move focused window to group {}".format(i.name)),
+#         ]
+#     )
+
+# Use renamed color module
+doom_colors = color_mod.DoomOne
 layout_theme = {"border_width": 1,
                 "margin": 0,
-                "border_focus": colors[7],
-                "border_normal": colors[0]
+                "border_focus": doom_colors[7],
+                "border_normal": doom_colors[0]
                 }
 
 
@@ -170,7 +216,7 @@ widget_defaults = dict(
     font="JetBrainsMono Nerd Font",
     fontsize=12,
     padding=2,
-    background=colors[0]
+    background=doom_colors[0]
 )
 
 extension_defaults = widget_defaults.copy()
@@ -184,7 +230,7 @@ def toggle_vol_text(qtile):
     
 @lazy.function
 def power_menu(qtile):
-    qtile.cmd_spawn(
+    qtile.spawn(
         "bash -c '"
         "choice=$(GTK_THEME=Adwaita:dark yad --width=200 --height=50 "
         "--title=\"Power Menu\" "
@@ -195,6 +241,14 @@ def power_menu(qtile):
         "elif [ \"$code\" -eq 1 ]; then systemctl reboot; fi'"
     )
 
+# Detect number of connected monitors via xrandr
+
+def get_monitor_count():
+    output = subprocess.check_output(["xrandr", "--query"]).decode()
+    return sum(1 for line in output.splitlines() if " connected" in line)
+
+monitor_count = get_monitor_count()
+
 # ──────────────────────────────────────────────────────────────────────────
 
 def init_widgets():
@@ -204,25 +258,25 @@ def init_widgets():
         widget.GroupBox(
             padding_x=0,
             margin_x=1,
-            active = colors[8],
-            inactive = colors[9],
+            active = doom_colors[8],
+            inactive = doom_colors[9],
             rounded = True,
-            highlight_color = colors[0],
+            highlight_color = doom_colors[0],
             highlight_method = "line",
-            this_current_screen_border = colors[7],
-            this_screen_border = colors [4],
-            other_current_screen_border = colors[7],
-            other_screen_border = colors[4],
+            this_current_screen_border = doom_colors[7],
+            this_screen_border = doom_colors[4],
+            other_current_screen_border = doom_colors[7],
+            other_screen_border = doom_colors[4],
             disable_drag=True,
         ),
-        widget.Prompt(name="prompt", prompt="Run: ", padding=5, foreground = colors[1]),
+        widget.Prompt(name="prompt", prompt="Run: ", padding=5, foreground = doom_colors[1]),
         widget.Spacer(length=6),
         # ---- centre ---------------------------------------------------------
         widget.Spacer(length=bar.STRETCH),
         widget.Clock(
             format="%H:%M   %d-%m-%Y",
             timezone=ZoneInfo("Europe/Vienna"),
-            foreground = colors[1],
+            foreground = doom_colors[1],
         ),
         widget.Spacer(length=bar.STRETCH),
 
@@ -234,13 +288,13 @@ def init_widgets():
             mouse_callbacks={
                 "Button3": lazy.spawn("nm-connection-editor"),  # right-click → open NetworkManager GUI
             },
-            foreground = colors[5],
+            foreground = doom_colors[5],
         ),
         #xwidget.Bluetooth(),                 # from qtile-extras
         #widget.Battery(format="  {percent:2.0%}", low_percentage=0.15),
         widget.PulseVolume(
             name="pulsevolume",
-            foreground = colors[7],
+            foreground = doom_colors[7],
             fmt=" {}",                       # single value, no % sign
             mouse_callbacks={
                 "Button1": toggle_vol_text,                                           # show/hide value
@@ -251,12 +305,12 @@ def init_widgets():
             },
         ),
         widget.Memory(
-            foreground = colors[8],
+            foreground = doom_colors[8],
             format="{MemUsed:4.1f}G",   # e.g. “  7.6 G”
             measure_mem="G",               # tell the widget we want GiB/GB
             update_interval=2,
         ),
-        widget.CPU(foreground = colors[4],format=" {load_percent:>3}%", update_interval=2),
+        widget.CPU(foreground = doom_colors[4],format=" {load_percent:>3}%", update_interval=2),
         widget.Systray(icon_size=12, padding=2),
         widget.TextBox(
             text="⏻",
@@ -272,14 +326,13 @@ def init_widgets():
 # For adding transparency to your bar, add (background="#00000000") to the "Screen" line(s)
 # For ex: Screen(top=bar.Bar(widgets=init_widgets_screen2(), background="#00000000", size=24)),
 
+# Create one Screen/bar per detected monitor
 screens = [
-    Screen(top=bar.Bar(init_widgets(), 28, opacity=0.70, margin=[0, 0, 0, 0])),
-]
+    Screen(top=bar.Bar(init_widgets(), 28, opacity=0.70, margin=[0, 0, 0, 0])) for _ in range(monitor_count)]
 
 # drag floating window with Mod + left-click
 Drag([mod], "Button1", lazy.window.set_position_floating(),
      start=lazy.window.get_position()),
-
 
 # Drag floating layouts.
 mouse = [
@@ -291,9 +344,9 @@ mouse = [
 dgroups_key_binder = None
 dgroups_app_rules = []  # type: list
 follow_mouse_focus = True
-bring_front_click = False
+bring_front_click = True
 floats_kept_above = True
-cursor_warp = False
+cursor_warp = True
 floating_layout = layout.Floating(
     float_rules=[
         # Run the utility of `xprop` to see the wm class and name of an X client.
