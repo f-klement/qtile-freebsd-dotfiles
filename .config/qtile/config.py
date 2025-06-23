@@ -37,7 +37,7 @@ from qtile_extras import widget as xwidget
 mod = "mod4"
 terminal = "kitty"
 browser = "flatpak run com.brave.Browser"
-editor  = "flatpak run com.vscodium.codium"
+editor  = "codium"
 files = "nautilus"
 notes = "flatpak run md.obsidian.Obsidian"
 

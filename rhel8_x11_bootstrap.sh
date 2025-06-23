@@ -60,6 +60,8 @@ dnf -y update
 sudo -iu "$TARGET_USER" flatpak remote-add --if-not-exists \
   flathub https://flathub.org/repo/flathub.flatpakrepo
 
+snap install codium --classic
+
 ### 2. QTile X11 (per-user venv under Python 3.12) ───────────────────────────────
 dnf -y install \
   python3.12 python3.12-devel polkit-kde python3-devel python3-gobject python3-pip \
@@ -109,7 +111,6 @@ su - "$TARGET_USER" -c '
 flatpak install --user -y flathub \
   io.gitlab.librewolf-community \
   com.brave.Browser \
-  com.vscodium.codium \
   com.github.tchx84.Flatseal \
   org.flameshot.Flameshot \
   md.obsidian.Obsidian
