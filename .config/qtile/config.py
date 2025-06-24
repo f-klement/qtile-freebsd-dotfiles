@@ -86,7 +86,7 @@ keys = [
     ),
     Key([mod], "q", lazy.spawn(terminal), desc="Launch terminal"),
     # Toggle between different layouts as defined below
-    Key([mod], "Tab", lazy.next_layout(), desc="Toggle between layouts"),
+    Key([mod, "mod1"], "Tab", lazy.next_layout(), desc="Toggle between layouts"),
     Key([mod,"mod1"], "x", lazy.window.kill(), desc="Kill focused window"),
     Key(
         [mod],
@@ -251,8 +251,8 @@ monitor_count = get_monitor_count()
 
 # ──────────────────────────────────────────────────────────────────────────
 
-def init_widgets():
-    return [
+def init_widgets(include_systray=True):
+    widgets = [
         # ---- LEFT cluster ---------------------------------------------------
         widget.Spacer(length=4),  # tiny padding
         widget.GroupBox(
@@ -310,8 +310,11 @@ def init_widgets():
             measure_mem="G",               # tell the widget we want GiB/GB
             update_interval=2,
         ),
-        widget.CPU(foreground = doom_colors[4],format=" {load_percent:>3}%", update_interval=2),
-        widget.Systray(icon_size=12, padding=2),
+        widget.CPU(foreground = doom_colors[4],format=" {load_percent:>3}%", update_interval=2)
+        ]
+    if include_systray:
+        widgets.append(widget.Systray(icon_size=12, padding=2))
+    widgets.extend([
         widget.TextBox(
             text="⏻",
             padding=6,
@@ -321,14 +324,17 @@ def init_widgets():
             }
         ),
         widget.Spacer(length=4),
-    ]
+    ])
+    return widgets
 
 # For adding transparency to your bar, add (background="#00000000") to the "Screen" line(s)
 # For ex: Screen(top=bar.Bar(widgets=init_widgets_screen2(), background="#00000000", size=24)),
 
 # Create one Screen/bar per detected monitor
 screens = [
-    Screen(top=bar.Bar(init_widgets(), 28, opacity=0.70, margin=[0, 0, 0, 0])) for _ in range(monitor_count)]
+    Screen(top=bar.Bar(init_widgets(include_systray=(i == 0)), 28, opacity=0.70))
+    for i in range(monitor_count)
+]
 
 # drag floating window with Mod + left-click
 Drag([mod], "Button1", lazy.window.set_position_floating(),
