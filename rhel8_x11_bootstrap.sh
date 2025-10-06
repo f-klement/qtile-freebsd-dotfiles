@@ -352,15 +352,24 @@ dnf -y remove xcompmgr || true
 
 ### 7. Node
 # pulling from node source, overwriting crusty rhel version
-curl -fsSL https://rpm.nodesource.com/setup_22.x -o nodesource_setup.sh
-sudo -E bash nodesource_setup.sh
-dnf module reset nodejs -y
-dnf module disable nodejs -y
-dnf remove nodejs npm -y
-dnf install nodejs -y
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+nvm install node
 
+### 8. clis
+# fzf
+git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+~/.fzf/install
+# ripgrep
+# rust for rg
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+
+#rg
+git clone https://github.com/BurntSushi/ripgrep
+cd ripgrep
+cargo build --release
   
-### 8. Default applications
+### 9. Default applications
 mkdir -p /home/$TARGET_USER/.config
 # Flatpak VSCodium as default editor (for $TARGET_USER)
 sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default com.vscodium.codium.desktop text/plain
