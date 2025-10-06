@@ -248,9 +248,9 @@ FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/$FONT
 
 # Check if the font is already installed
 if fc-list | grep -qi "$FONT_NAME"; then
-    echo "✅ '$FONT_NAME' is already installed. Skipping download."
+    echo "'$FONT_NAME' is already installed. Skipping download."
 else
-    echo "⬇️  Installing '$FONT_NAME'..."
+    echo " Installing '$FONT_NAME'..."
     mkdir -p "$FONT_DIR"
     cd "$FONT_DIR" || exit 1
 
@@ -258,10 +258,10 @@ else
     unzip -o "$FONT_ZIP"
     rm "$FONT_ZIP"
 
-    echo "🔁 Rebuilding font cache..."
+    echo " Rebuilding font cache..."
     fc-cache -fv
 
-    echo "✅ '$FONT_NAME' installed successfully."
+    echo "'$FONT_NAME' installed successfully."
 fi
 
 sudo -u "$TARGET_USER" bash -lc "

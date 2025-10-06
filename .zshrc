@@ -178,6 +178,7 @@ alias qlogs='tail -f ~/.local/share/qtile/qtile.log'
 alias qstart='~/.local/venvs/qtile/bin/qtile start'
 alias dc='docker compose'
 alias denv='nano ./.env'
+alias treex="tree -I 'node_modules|dist|.git' --prune"
 
 # 9) ex – archive extractor
 ex() {
@@ -219,3 +220,22 @@ if [[ -f /opt/etc/bash_completion ]]; then
   source /opt/etc/bash_completion
 fi
 
+
+# bun completions
+[ -s "/home/admin/.bun/_bun" ] && source "/home/admin/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+alias kubectl="minikube kubectl --"
+
+export NO_PROXY=$NO_PROXY,192.168.49.2
+
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh

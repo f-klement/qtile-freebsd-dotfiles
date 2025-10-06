@@ -107,3 +107,10 @@ fi
 if [ -f /opt/etc/bash_completion ] && ! shopt -oq posix; then
     . /opt/etc/bash_completion
 fi
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+alias kubectl="minikube kubectl --"
+export NO_PROXY=$NO_PROXY,192.168.49.2
+
+[ -f ~/.fzf.bash ] && source ~/.fzf.bash
+. "$HOME/.cargo/env"
