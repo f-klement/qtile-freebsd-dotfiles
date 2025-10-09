@@ -350,13 +350,16 @@ dnf -y remove xcompmgr || true
 [[ -d /home/$TARGET_USER/Pictures/wallpapers ]] || \
   git clone https://github.com/f-klement/wallpapers.git /home/$TARGET_USER/Pictures/wallpapers
 
-### 7. Node & Bun
-# pulling from node source, overwriting crusty rhel version
+### 7. Node, Bun and uv for Python
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 nvm install node
 curl -fsSL https://bun.com/install | bash
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+echo 'eval "$(uv generate-shell-completion zsh)"' >> ~/.zshrc
+echo 'eval "$(uvx --generate-shell-completion zsh)"' >> ~/.zshrc
 
 
 ### 8. clis & tuis
