@@ -359,7 +359,7 @@ export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
 
-### 8. clis
+### 8. clis & tuis
 # fzf
 git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
 ~/.fzf/install
@@ -372,7 +372,18 @@ source $HOME/.cargo/env
 git clone https://github.com/BurntSushi/ripgrep
 cd ripgrep
 cargo build --release
-  
+mv ./target/release/rg /usr/local/bin/
+
+#docker & lazydocker
+dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+dnf install docker-ce docker-ce-cli containerd.io docker-compose-plugin.x86_64
+systemctl start docker
+systemctl enable docker
+usermod -aG docker "$TARGET_USER"
+
+curl https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash  
+
+
 ### 9. Default applications
 mkdir -p /home/$TARGET_USER/.config
 # Flatpak VSCodium as default editor (for $TARGET_USER)
@@ -394,4 +405,4 @@ sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime def
 sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default vlc.desktop audio/mpeg
 sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default vlc.desktop audio/x-wav
 
-echo "✔ Migration complete!  Use stow . to symlink your dotfiles once you’re settled in."
+echo "Migration complete!  Use stow . to symlink your dotfiles once you’re settled in."

@@ -178,7 +178,8 @@ alias qlogs='tail -f ~/.local/share/qtile/qtile.log'
 alias qstart='~/.local/venvs/qtile/bin/qtile start'
 alias dc='docker compose'
 alias denv='nano ./.env'
-alias treex="tree -I 'node_modules|dist|.git' --prune"
+alias treex="tree -I 'node_modules|dist|.git|.sonar|.scannerwork' --prune -a -C"
+alias ld="lazydocker"
 
 # 9) ex – archive extractor
 ex() {
