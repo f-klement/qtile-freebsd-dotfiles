@@ -114,77 +114,77 @@ for vt in range(1, 8):
         )
     )
 
-groups = [
-   Group(name="1", screen_affinity=0),
-   Group(name="2", screen_affinity=1),
-   Group(name="3", screen_affinity=0),
-   Group(name="4", screen_affinity=1),
-   Group(name="5", screen_affinity=0),
-   Group(name="6", screen_affinity=1),
-   Group(name="7", screen_affinity=0),
-   Group(name="8", screen_affinity=1),
-   Group(name="9", screen_affinity=0),
-]
+# groups = [
+#    Group(name="1", screen_affinity=0),
+#    Group(name="2", screen_affinity=1),
+#    Group(name="3", screen_affinity=0),
+#    Group(name="4", screen_affinity=1),
+#    Group(name="5", screen_affinity=0),
+#    Group(name="6", screen_affinity=1),
+#    Group(name="7", screen_affinity=0),
+#    Group(name="8", screen_affinity=1),
+#    Group(name="9", screen_affinity=0),
+# ]
 
-def go_to_group(name: str):
-   def _inner(qtile):
-       if len(qtile.screens) == 1:
-           qtile.groups_map[name].toscreen()
-           return
+# def go_to_group(name: str):
+#    def _inner(qtile):
+#        if len(qtile.screens) == 1:
+#            qtile.groups_map[name].toscreen()
+#            return
 
-       if name in '13579':
-           qtile.focus_screen(0)
-           qtile.groups_map[name].toscreen()
-       else:
-           qtile.focus_screen(1)
-           qtile.groups_map[name].toscreen()
-   return _inner
-
-for i in groups:
-   keys.append(
-       Key(
-           [mod, "shift"],
-           i.name,
-           lazy.window.togroup(i.name, switch_group=True),
-           desc=f"Move window to group {i.name}",
-       )
-   )
-
-for i in groups:
-   keys.append(
-       Key(
-           [mod],
-           i.name,
-           lazy.function(go_to_group(i.name)),
-           desc=f"Switch to group {i.name}",
-       )
-   )
-
-#     groups = [Group(i) for i in "123456789"]
+#        if name in '13579':
+#            qtile.focus_screen(0)
+#            qtile.groups_map[name].toscreen()
+#        else:
+#            qtile.focus_screen(1)
+#            qtile.groups_map[name].toscreen()
+#    return _inner
 
 # for i in groups:
-#     keys.extend(
-#         [
-#             # mod + group number = switch to group
-#             Key(
-#                 [mod],
-#                 i.name,
-#                 lazy.group[i.name].toscreen(),
-#                 desc=f"Switch to group {i.name}",
-#             ),
-#             # mod + shift + group number = switch to & move focused window to group
-#             Key(
-#                 [mod, "shift"],
-#                 i.name,
-#                 lazy.window.togroup(i.name, switch_group=True),
-#                 desc=f"Switch to & move focused window to group {i.name}",
-#             ),
+#    keys.append(
+#        Key(
+#            [mod, "shift"],
+#            i.name,
+#            lazy.window.togroup(i.name, switch_group=True),
+#            desc=f"Move window to group {i.name}",
+#        )
+#    )
+
+# for i in groups:
+#    keys.append(
+#        Key(
+#            [mod],
+#            i.name,
+#            lazy.function(go_to_group(i.name)),
+#            desc=f"Switch to group {i.name}",
+#        )
+#    )
+
+    groups = [Group(i) for i in "123456789"]
+
+for i in groups:
+    keys.extend(
+        [
+            # mod + group number = switch to group
+            Key(
+                [mod],
+                i.name,
+                lazy.group[i.name].toscreen(),
+                desc=f"Switch to group {i.name}",
+            ),
+            # mod + shift + group number = switch to & move focused window to group
+            Key(
+                [mod, "shift"],
+                i.name,
+                lazy.window.togroup(i.name, switch_group=True),
+                desc=f"Switch to & move focused window to group {i.name}",
+             ),
 #             # Or, use below if you prefer not to switch to that group.
 #             # # mod + shift + group number = move focused window to group
 #             # Key([mod, "shift"], i.name, lazy.window.togroup(i.name),
 #             #     desc="move focused window to group {}".format(i.name)),
-#         ]
-#     )
+        ]
+    )
 
 # Use renamed color module
 doom_colors = color_mod.DoomOne
@@ -345,6 +345,9 @@ mouse = [
     Drag([mod], "Button1", lazy.window.set_position_floating(), start=lazy.window.get_position()),
     Drag([mod], "Button3", lazy.window.set_size_floating(), start=lazy.window.get_size()),
     Click([mod], "Button2", lazy.window.bring_to_front()),
+   # --- Use standard group cycling ---
+    Click([mod], "Button4", lazy.screen.next_group()),
+    Click([mod], "Button5", lazy.screen.prev_group()),
 ]
 
 dgroups_key_binder = None

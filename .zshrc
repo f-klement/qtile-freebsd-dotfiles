@@ -236,6 +236,13 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 alias kubectl="minikube kubectl --"
+alias db="docker build \
+--add-host=NEXUS_HOST:NEXUS_IP \
+--build-arg NEXUS_HOST=NEXUS_HOST \
+--build-arg NEXUS_NPM_AUTH=NEXUS_NPM_AUTH \
+--build-arg NEXUS_TOKEN=NEXUS_TOKEN
+"
+
 
 export NO_PROXY=$NO_PROXY,192.168.49.2
 
