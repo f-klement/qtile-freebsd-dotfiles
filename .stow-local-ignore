@@ -5,6 +5,8 @@ bootstrap.sh
 
 __pycache__
 __pycache__/*
+\.mypy_cache
+\.mypy_cache/*
 
 RCS
 .+,v
