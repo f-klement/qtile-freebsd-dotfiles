@@ -31,8 +31,9 @@ from zoneinfo import ZoneInfo
 from libqtile import bar, layout, qtile, widget, hook
 from libqtile.config import Click, Drag, Group, Key, Match, Screen
 from libqtile.lazy import lazy
-from libqtile.utils import guess_terminal
+from libqtile.utils import guess_terminal, logger
 from qtile_extras import widget as xwidget 
+from types import FunctionType
 
 mod = "mod4"
 terminal = "kitty"
@@ -40,6 +41,35 @@ browser = "flatpak run com.brave.Browser"
 editor  = "codium"
 files = "nautilus"
 notes = "flatpak run md.obsidian.Obsidian"
+
+# ── helpers ───────────────────────────────────────────────────────────────
+@lazy.function
+def move_window_to_screen(qtile, direction="next"):
+    """
+    Moves the focused window to the next or previous screen.
+    """
+    # Get the index of the current screen
+    current_screen_index = qtile.current_screen.index
+
+    # Get the total number of screens
+    num_screens = len(qtile.screens)
+
+    # Determine the target screen index
+    if direction == "next":
+        target_screen_index = (current_screen_index + 1) % num_screens
+    else: # "prev"
+        target_screen_index = (current_screen_index - 1) % num_screens
+
+    # Get the target screen's group
+    target_group = qtile.screens[target_screen_index].group
+
+    # Move the window
+    if qtile.current_window and target_group:
+        qtile.current_window.togroup(target_group.name)
+        # Optional: also switch focus to that screen
+        # qtile.focus_screen(target_screen_index)
+
+# ── helpers ───────────────────────────────────────────────────────────────
 
 keys = [ 
     # A list of available commands that can be bound to keys can be found
@@ -63,10 +93,10 @@ keys = [
     Key([mod, "control"], "Down", lazy.layout.grow_down(), desc="Grow window down"),
     Key([mod, "control"], "Up", lazy.layout.grow_up(), desc="Grow window up"),
     # --- Move *floating* window 40 px at a time (no conflict with mod-shift keys) ---
-    Key([mod, "mod1"], "Left",  lazy.window.move_floating(-40, 0),  desc="Nudge floating window left"),
-    Key([mod, "mod1"], "Right", lazy.window.move_floating( 40, 0),  desc="Nudge floating window right"),
-    Key([mod, "mod1"], "Up",    lazy.window.move_floating( 0, -40), desc="Nudge floating window up"),
-    Key([mod, "mod1"], "Down",  lazy.window.move_floating( 0, 40),  desc="Nudge floating window down"),    
+    # Key([mod, "mod1"], "Left",  lazy.window.move_floating(-40, 0),  desc="Nudge floating window left"),
+    # Key([mod, "mod1"], "Right", lazy.window.move_floating( 40, 0),  desc="Nudge floating window right"),
+    # Key([mod, "mod1"], "Up",    lazy.window.move_floating( 0, -40), desc="Nudge floating window up"),
+    # Key([mod, "mod1"], "Down",  lazy.window.move_floating( 0, 40),  desc="Nudge floating window down"),    
     Key([mod], "n", lazy.layout.normalize(), desc="Reset all window sizes"),
      # new launch shortcuts
     Key([mod], "b", lazy.spawn(browser), desc="Launch browser"),
@@ -99,6 +129,8 @@ keys = [
     Key([mod, "control"], "q", lazy.shutdown(), desc="Shutdown Qtile"),
     Key([mod], "r", lazy.spawncmd(prompt="Run: "), desc="Spawn a command"),
     Key([mod],"Tab", lazy.next_screen(), desc='Next monitor'),
+    Key([mod, "mod1"], "Left", move_window_to_screen(direction="prev"), desc="Move window to previous monitor"),
+    Key([mod, "mod1"], "Right", move_window_to_screen(direction="next"), desc="Move window to next monitor"),
 ]
 
 # Add key bindings to switch VTs in Wayland.
@@ -160,7 +192,7 @@ for vt in range(1, 8):
 #        )
 #    )
 
-    groups = [Group(i) for i in "123456789"]
+groups = [Group(i) for i in "123456789"]
 
 for i in groups:
     keys.extend(
@@ -222,6 +254,7 @@ widget_defaults = dict(
 extension_defaults = widget_defaults.copy()
 
 # ── helpers ───────────────────────────────────────────────────────────────
+
 @lazy.function
 def toggle_vol_text(qtile):
     w = qtile.widgets_map["pulsevolume"]
@@ -315,14 +348,51 @@ def init_widgets(include_systray=True):
     if include_systray:
         widgets.append(widget.Systray(icon_size=12, padding=2))
     widgets.extend([
+        widget.Spacer(length=3),
+        widget.CheckUpdates(
+            distro="Fedora",  # This uses the DNF backend, which works for Rocky/RHEL
+            display_format="󱧕 {updates}", #  is a Nerd Font package icon
+            no_update_string="󱧕 0",
+            colour_have_updates=doom_colors[5], # Green
+            colour_no_updates=doom_colors[9],   # Grey
+            update_interval=1800, # Check every 30 mins
+            mouse_callbacks={
+                # Left-click to run a system update in a new terminal
+                "Button1": lazy.spawn(terminal + " -e sh -c \""
+                    
+                    # 1. DNF (as root, no confirmation)
+                    "echo '--- 1/3: Updating DNF packages ---'; "
+                    "sudo dnf update -y; "
+                    
+                    # 2. Flatpak, no confirmation
+                    "echo; echo '--- 2/3: Updating Flatpak packages ---'; "
+                    "sudo flatpak update -y; "
+                    
+                    # 3. Snap (as root)
+                    "echo; echo '--- 3/3: Updating Snap packages ---'; "
+                    "sudo snap refresh; "
+                    
+                    # 4. Wait for user input
+                    "echo; echo '--- All updates complete. Press Enter to close. ---'; "
+                    "read"
+                    
+                    "\""  # Close the sh -c string
+                )
+            },
+            padding=1,
+        ),
+        widget.Spacer(length=1),
         widget.TextBox(
             text="⏻",
             padding=6,
             fontsize=16,
             mouse_callbacks={
-                 "Button1": power_menu
-            }
-        ),
+                 "Button1": lazy.spawn(terminal + " -e sh -c \""
+                    # reboobt the system
+                    "echo '--- rebooting? ---'; "
+                    "sudo reboot; "
+           "\"" 
+        )}),
         widget.Spacer(length=4),
     ])
     return widgets
@@ -394,6 +464,56 @@ wl_input_rules = None
 # xcursor theme (string or None) and size (integer) for Wayland backend
 wl_xcursor_theme = "Dracula"
 wl_xcursor_size = 24
+
+@hook.subscribe.client_new
+def assign_app_group(client):
+    """
+    Automatically move windows to designated groups based on their WM_CLASS.
+    Run `xprop | grep WM_CLASS` in a terminal and click on a window
+    to find its wm_class.
+    """
+    # Use a dict for easy lookup
+    # Format: { "wm_class": ("group_name", options) }
+    # options: "switch" = switch to group after moving
+
+    d = {
+        "Brave-browser": ("1", "switch"),  
+        "VSCodium":      ("2", "switch"),  
+        "obsidian":      ("5", None),       
+        "Nautilus":      ("6", None), 
+        "Slack":         ("6", None), 
+        "KeePassXC":     ("7", "switch")     
+    }
+
+    # Get the wm_class
+    try:
+
+        wm_class_tuple = client.window.get_wm_class()
+        if not wm_class_tuple:
+            return
+        # UNCOMMENT to debug in ~/.local/share/qtile/qtile.log
+        # logger.warning(f"New Client WM_CLASS: {wm_class_tuple}")
+ # The tuple is (instance, class). We check if *either* is in our dict.
+        matched_key = None
+        for item in wm_class_tuple:
+            if item in d:
+                matched_key = item
+                break
+        
+        # If we found a match...
+        if matched_key:
+            group_name, option = d[matched_key]
+            
+            # Move the window to the target group
+            client.togroup(group_name)
+
+            # Optionally switch focus to that group
+            if option == "switch":
+                # This now works because 'qtile' was imported
+                qtile.groups_map[group_name].toscreen()
+
+    except (IndexError, TypeError):
+        return  # Not all windows have a wm_class
 
 # XXX: Gasp! We're lying here. In fact, nobody really uses or cares about this
 # string besides java UI toolkits; you can see several discussions on the

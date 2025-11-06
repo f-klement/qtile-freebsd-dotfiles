@@ -82,7 +82,7 @@ source "$QTILE_VENV/bin/activate"
 pip install --upgrade pip
 pip install qtile qtile-extras mypy typeshed-client typing_extensions pulsectl dbus-next psutil
 # upgrade these separately
-pip install --upgrade python-dateutil dbus-fast pulsectl-asyncio
+pip install --upgrade python-dateutil dbus-fast pulsectl-asyncio pangocffi cairocffi
 EOF
 
 cat >/usr/share/xsessions/qtile.desktop <<'EOF'
@@ -132,7 +132,7 @@ skip_if_installed i3lock bash -lc "
     xcb-util-keysyms-devel xcb-util-renderutil-devel \
     xcb-util-wm-devel xcb-util-cursor-devel \
     xorg-x11-util-macros \
-    autoconf automake libtool
+    autoconf automake libtool copyq
 
 
 # 2. Build & install xcb-util-xrm (prefix /usr so pkg-config finds it)

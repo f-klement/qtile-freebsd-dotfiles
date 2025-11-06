@@ -1,4 +1,4 @@
-# If you come from bash you might have to change your $PATH.
+## If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
@@ -68,7 +68,7 @@ fi
 # You can also set it to another string to have that shown instead of the default red dots.
 # e.g. COMPLETION_WAITING_DOTS="%F{yellow}waiting...%f"
 # Caution: this setting can cause issues with multiline prompts in zsh < 5.7.1 (see #5765)
-# COMPLETION_WAITING_DOTS="true"
+COMPLETION_WAITING_DOTS="true"
 
 # Uncomment the following line if you want to disable marking untracked files
 # under VCS as dirty. This makes repository status check for large repositories
@@ -169,13 +169,15 @@ alias la='ls -a'
 alias l='ls -CF'
 alias ls='ls --color=auto -a'
 
-alias dnfu='sudo -S dnf update && sudo -S flatpak update && sudo snap refresh'
+alias dnfu='sudo -S dnf update -y && sudo -S flatpak update -y && sudo snap refresh'
 alias qenv='source ~/.local/venvs/qtile/bin/activate'
 alias qcheck='~/.local/venvs/qtile/bin/qtile check'
 alias qconf='vim ~/.config/qtile/config.py'
 alias qvalid='( source ~/.local/venvs/qtile/bin/activate && qtile check )'
 alias qlogs='tail -f ~/.local/share/qtile/qtile.log'
 alias qstart='~/.local/venvs/qtile/bin/qtile start'
+alias qrefresh='qtile cmd-obj -o . -f reload_config'
+
 alias dc='docker compose'
 alias denv='nano ./.env'
 alias treex="tree -I 'node_modules|dist|.git|.sonar|.scannerwork' --prune -a -C"

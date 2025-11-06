@@ -84,3 +84,12 @@ xset s 300 -dpms
 # lock using our script
 exec dbus-run-session --exit-with-session xss-lock -- ~/.config/qtile/lock_with_random_bg_x11.sh &
 
+# ── lauch user applications ──────────────
+# flatpak
+flatpak run com.brave.Browser &
+flatpak run md.obsidian.Obsidian &
+
+# native apps & snaps
+codium &
+nautilus &
+slack &
