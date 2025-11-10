@@ -67,7 +67,7 @@ def move_window_to_screen(qtile, direction="next"):
     if qtile.current_window and target_group:
         qtile.current_window.togroup(target_group.name)
         # Optional: also switch focus to that screen
-        # qtile.focus_screen(target_screen_index)
+        qtile.focus_screen(target_screen_index)
 
 # ── helpers ───────────────────────────────────────────────────────────────
 
