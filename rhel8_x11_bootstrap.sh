@@ -386,6 +386,12 @@ usermod -aG docker "$TARGET_USER"
 
 curl https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash  
 
+# homebrew (snap and flatpak don't always cover relvant dev dependancies, eg. a new gcc compiler)
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
+echo >> /home/admin/.zshrc
+echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"' >> /home/admin/.zshrc
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
+brew install gcc
 
 ### 9. Default applications
 mkdir -p /home/$TARGET_USER/.config

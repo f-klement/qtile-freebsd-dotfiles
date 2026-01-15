@@ -182,6 +182,8 @@ alias dc='docker compose'
 alias denv='nano ./.env'
 alias treex="tree -I 'node_modules|dist|.git|.sonar|.scannerwork' --prune -a -C"
 alias ld="lazydocker"
+alias flatpak='http_proxy="$http_proxy" https_proxy="$https_proxy" ftp_proxy="$ftp_proxy" all_proxy="$all_proxy" flatpak'
+alias sshlukas='ssh klement@10.70.150.50'
 
 # 9) ex – archive extractor
 ex() {
@@ -230,8 +232,6 @@ fi
 # bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
@@ -249,3 +249,5 @@ alias db="docker build \
 export NO_PROXY=$NO_PROXY,192.168.49.2
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
