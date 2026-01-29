@@ -481,7 +481,6 @@ def assign_app_group(client):
         "VSCodium":      ("2", "switch"),  
         "obsidian":      ("5", None),       
         "Nautilus":      ("6", None), 
-        "Slack":         ("6", None), 
         "KeePassXC":     ("7", "switch")     
     }
 

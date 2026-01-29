@@ -16,6 +16,15 @@ if [[ "$TERM_PROGRAM" == "vscodium" ]]; then
   fi
 fi
 
+if [[ "$TERM_PROGRAM" == "vscode" || -n "$VSCODE_INJECTION" ]]; then
+    # Remove Snap's GIO modules path (fixes "undefined symbol" errors)
+    unset GIO_MODULE_DIR
+    # Remove GTK modules path (fixes "Failed to load module" warnings)
+    unset GTK_MODULES
+    # Optional: specific fixes for other Snap quirks
+    unset GTK_IM_MODULE
+fi
+
 # Rest of your normal configuration...
 
 

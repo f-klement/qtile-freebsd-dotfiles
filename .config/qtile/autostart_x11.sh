@@ -92,4 +92,3 @@ flatpak run md.obsidian.Obsidian &
 # native apps & snaps
 codium &
 nautilus &
-slack &
