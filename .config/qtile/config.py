@@ -372,9 +372,9 @@ def init_widgets(include_systray=True):
                     "echo; echo '--- 3/4: Updating Snap packages ---'; "
                     "sudo snap refresh; "
 
-		   # 4. Homebrew
-		   "echo; echo '--- 4/4: Update Homebrew packages ---'; "
-		   "brew update; brew upgrade;"
+                    # 4. Homebrew
+                    "echo; echo '--- 4/4: Update Homebrew packages ---'; "
+                    "/home/linuxbrew/.linuxbrew/bin/brew update; /home/linuxbrew/.linuxbrew/bin/brew upgrade;"
                     
                     # 5. Wait for user input
                     "echo; echo '--- All updates complete. Press Enter to close. ---'; "

@@ -391,7 +391,7 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/i
 echo >> /home/admin/.zshrc
 echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"' >> /home/admin/.zshrc
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
-brew install gcc
+/home/linuxbrew/.linuxbrew/bin/brew install gcc
 
 ### 9. Default applications
 mkdir -p /home/$TARGET_USER/.config
