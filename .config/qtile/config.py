@@ -361,18 +361,22 @@ def init_widgets(include_systray=True):
                 "Button1": lazy.spawn(terminal + " -e sh -c \""
                     
                     # 1. DNF (as root, no confirmation)
-                    "echo '--- 1/3: Updating DNF packages ---'; "
+                    "echo '--- 1/4: Updating DNF packages ---'; "
                     "sudo dnf update -y; "
                     
                     # 2. Flatpak, no confirmation
-                    "echo; echo '--- 2/3: Updating Flatpak packages ---'; "
+                    "echo; echo '--- 2/4: Updating Flatpak packages ---'; "
                     "sudo flatpak update -y; "
                     
                     # 3. Snap (as root)
-                    "echo; echo '--- 3/3: Updating Snap packages ---'; "
+                    "echo; echo '--- 3/4: Updating Snap packages ---'; "
                     "sudo snap refresh; "
+
+		   # 4. Homebrew
+		   "echo; echo '--- 4/4: Update Homebrew packages ---'; "
+		   "brew update; brew upgrade;"
                     
-                    # 4. Wait for user input
+                    # 5. Wait for user input
                     "echo; echo '--- All updates complete. Press Enter to close. ---'; "
                     "read"
                     
