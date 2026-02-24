@@ -7,10 +7,13 @@ export PATH="/usr/local/bin:$PATH"
 /usr/local/bin/dunst &  
 
 # ── Keyring (run *before* any app that needs secrets) ────────────────────
-eval "$(gnome-keyring-daemon --start --components=pkcs11,secrets,ssh,gpg)"
-export SSH_AUTH_SOCK
+# HANDLED IN SESSION AUTOSTART NOW
+# eval "$(gnome-keyring-daemon --start --components=pkcs11,secrets,ssh,gpg)"
+# export SSH_AUTH_SOCK
 
-# ── Policy-kit agent (package name: polkit-gnome) ────────────────────────
+# # Sync the variables to the global D-Bus and Systemd environment
+# dbus-update-activation-environment --systemd GNOME_KEYRING_CONTROL SSH_AUTH_SOCK
+# # ── Policy-kit agent (package name: polkit-gnome) ────────────────────────
 # KDE Polkit agent (works with Qtile)
 if [ -x /usr/libexec/polkit-kde-authentication-agent-1 ]; then
     /usr/libexec/polkit-kde-authentication-agent-1 &

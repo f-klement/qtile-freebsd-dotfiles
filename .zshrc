@@ -28,6 +28,18 @@ fi
 # Rest of your normal configuration...
 
 
+# Docker "Nuke" Function
+dkr() {
+    if [ -z "$1" ]; then
+        echo "Usage: dkr <name>"
+    else
+        echo "Stopping, removing, and deleting image for: $1..."
+        docker stop "$1" 2>/dev/null && \
+        docker rm "$1" 2>/dev/null && \
+        docker rmi "$1"
+    fi
+}
+
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
@@ -260,3 +272,4 @@ export NO_PROXY=$NO_PROXY,192.168.49.2
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
+if [ /usr/local/bin/kubectl ]; then source <(kubectl completion zsh); fi
