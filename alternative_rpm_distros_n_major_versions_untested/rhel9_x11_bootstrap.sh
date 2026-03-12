@@ -231,20 +231,80 @@ skip_if_installed picom bash -lc "
 "
 dnf -y remove xcompmgr || true
 
-### 7. Node
-# pulling from node source, overwriting crusty rhel version
-curl -fsSL https://rpm.nodesource.com/setup_22.x -o nodesource_setup.sh
-sudo -E bash nodesource_setup.sh
-dnf module reset nodejs -y
-dnf module disable nodejs -y
-dnf remove nodejs npm -y
-dnf install nodejs -y
-
 # Wallpapers
 [[ -d /home/$TARGET_USER/Pictures/wallpapers ]] || \
   git clone https://github.com/f-klement/wallpapers.git /home/$TARGET_USER/Pictures/wallpapers
-  
-### 8. Default applications
+
+### 7. Node, Bun and uv for Python
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+export NVM_DIR="$HOME/.nvm"               
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm 
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+nvm install node
+nvm use node
+dnf install -y libatomic
+curl -fsSL https://bun.com/install | bash
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+echo 'eval "$(uv generate-shell-completion zsh)"' >> ~/.zshrc
+echo 'eval "$(uvx --generate-shell-completion zsh)"' >> ~/.zshrc
+
+
+### 8. clis & tuis
+# fzf
+git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+~/.fzf/install
+# ripgrep
+# rust for rg
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+
+#rg
+git clone https://github.com/BurntSushi/ripgrep
+cd ripgrep
+cargo build --release
+mv ./target/release/rg /usr/local/bin/
+
+#docker & lazydocker
+dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+dnf install docker-ce docker-ce-cli containerd.io docker-compose-plugin.x86_64
+systemctl start docker
+systemctl enable docker
+usermod -aG docker "$TARGET_USER"
+
+curl https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash  
+
+# homebrew (snap and flatpak don't always cover relevant dev dependancies, eg. a new gcc compiler)
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
+echo >> /home/admin/.zshrc
+echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"' >> /home/admin/.zshrc
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
+/home/linuxbrew/.linuxbrew/bin/brew install gcc
+
+### 9. Bruno for api testing
+dnf install -y fuse
+npm install -g @usebruno/cli
+AIL_URL=$(curl -s https://api.github.com/repos/TheAssassin/AppImageLauncher/releases | \
+  jq -r '[.[] | select(.prerelease == false and (.tag_name | test("alpha|beta|rc"; "i") | not))][0] | .assets[] | select(.name | endswith("x86_64.rpm")) | .browser_download_url' | head -n 1)
+
+echo "Downloading Stable AppImageLauncher from: $AIL_URL"
+curl -L "$AIL_URL" -o /tmp/appimagelauncher.rpm
+dnf localinstall -y /tmp/appimagelauncher.rpm
+rm /tmp/appimagelauncher.rpm
+dnf install qt5-qtbase qt5-qtbase-gui
+
+# bruno appimage
+BRUNO_URL=$(curl -s https://api.github.com/repos/usebruno/bruno/releases | \
+  jq -r '[.[] | select(.prerelease == false and (.tag_name | test("alpha|beta|rc"; "i") | not))][0] | .assets[] | select(.name | contains("x86_64") and endswith(".AppImage")) | .browser_download_url' | head -n 1)
+
+mkdir -p "$HOME/Applications"
+echo "Downloading Stable Bruno from: $BRUNO_URL"
+curl -L "$BRUNO_URL" -o "$HOME/Applications/Bruno.AppImage"
+chmod +x "$HOME/Applications/Bruno.AppImage"
+
+### 10. Default applications
 mkdir -p /home/$TARGET_USER/.config
 # Flatpak VSCodium as default editor (for $TARGET_USER)
 sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default com.vscodium.codium.desktop text/plain

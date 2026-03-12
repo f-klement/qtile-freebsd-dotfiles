@@ -14,3 +14,8 @@ __pycache__/*
 __pycache__
 pkg/
 src/
+
+
+.ssh
+.pgp
+.gpg

@@ -148,7 +148,7 @@ source $ZSH/oh-my-zsh.sh
 alias python=/usr/bin/python3.12
 alias python3=/usr/bin/python3.12
 alias pip=pip3
-
+alias kitten='kitty +kitten'
 # ~/.zshrc: your interactive zsh startup
 
 # 1) Only run for interactive shells
@@ -273,3 +273,6 @@ export NO_PROXY=$NO_PROXY,192.168.49.2
 
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
 if [ /usr/local/bin/kubectl ]; then source <(kubectl completion zsh); fi
+
+# Generated for envman. Do not edit.
+[ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"

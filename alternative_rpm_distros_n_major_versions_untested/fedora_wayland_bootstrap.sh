@@ -136,32 +136,73 @@ sudo -u "$TARGET_USER" bash -lc "
 "
 
 
-### 7. Wallpapers ─────────────────────────────────────────────────────────────
+
+# Wallpapers
 [[ -d /home/$TARGET_USER/Pictures/wallpapers ]] || \
   git clone https://github.com/f-klement/wallpapers.git /home/$TARGET_USER/Pictures/wallpapers
 
-### 8. Default applications ───────────────────────────────────────────────────
- sudo -u "$TARGET_USER" bash -lc '
-   set -e
-   XDG_CONFIG_HOME="$HOME/.config"
-   mkdir -p "$XDG_CONFIG_HOME"
-   # editor
-   for mime in text/plain text/x-python text/x-shellscript; do
-     xdg-mime default com.vscodium.codium.desktop "$mime"
-   done
-   # browser
-   xdg-settings set default-web-browser com.brave.Browser.desktop
-   for scheme in http https; do
-     xdg-mime default com.brave.Browser.desktop x-scheme-handler/$scheme
-   done
-   # media player
-   for type in video/mp4 video/x-matroska audio/mpeg audio/x-wav; do
-     xdg-mime default vlc.desktop "$type"
-   done
- '
+### 7. Node, Bun and uv for Python
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+nvm install node
+curl -fsSL https://bun.com/install | bash
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+echo 'eval "$(uv generate-shell-completion zsh)"' >> ~/.zshrc
+echo 'eval "$(uvx --generate-shell-completion zsh)"' >> ~/.zshrc
+
+
+### 8. clis & tuis
+# fzf
+git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+~/.fzf/install
+# ripgrep
+# rust for rg
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+
+#rg
+git clone https://github.com/BurntSushi/ripgrep
+cd ripgrep
+cargo build --release
+mv ./target/release/rg /usr/local/bin/
+
+#docker & lazydocker
+dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+dnf install docker-ce docker-ce-cli containerd.io docker-compose-plugin.x86_64
+systemctl start docker
+systemctl enable docker
+usermod -aG docker "$TARGET_USER"
+
+curl https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash  
+
+# homebrew (snap and flatpak don't always cover relevant dev dependancies, eg. a new gcc compiler)
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
+echo >> /home/admin/.zshrc
+echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"' >> /home/admin/.zshrc
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
+/home/linuxbrew/.linuxbrew/bin/brew install gcc
+
+### 9. Default applications
+mkdir -p /home/$TARGET_USER/.config
+# Flatpak VSCodium as default editor (for $TARGET_USER)
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default com.vscodium.codium.desktop text/plain
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default com.vscodium.codium.desktop text/x-python
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default com.vscodium.codium.desktop text/x-shellscript
+# Flatpak Brave as default browser (for $TARGET_USER)
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-settings set default-web-browser com.brave.Browser.desktop
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default com.brave.Browser.desktop x-scheme-handler/http
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default com.brave.Browser.desktop x-scheme-handler/https
+# Kitty as default terminal (system-wide)
 if command -v kitty >/dev/null; then
   sudo alternatives --install /usr/bin/x-terminal-emulator x-terminal-emulator /usr/bin/kitty 50
   sudo alternatives --set x-terminal-emulator /usr/bin/kitty
 fi
+# VLC as default video & music player (for $TARGET_USER)
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default vlc.desktop video/mp4
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default vlc.desktop video/x-matroska
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default vlc.desktop audio/mpeg
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default vlc.desktop audio/x-wav
 
-echo "✔ Fedora 42 Wayland + Qtile bootstrap complete, use GNU stow and enjoy!"
+echo "✔ Fedora Wayland + Qtile bootstrap complete, use GNU stow and enjoy!"
