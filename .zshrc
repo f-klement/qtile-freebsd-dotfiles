@@ -266,8 +266,9 @@ alias db="docker build \
 --build-arg NEXUS_TOKEN=NEXUS_TOKEN
 "
 
-
-export NO_PROXY=$NO_PROXY,192.168.49.2
+export SONARQUBE_URL="http://10.70.150.52:9001"
+export SONARQUBE_TOKEN="squ_ffd928b7f25175a38b619b7857b7474c4907a598"
+export NO_PROXY=$NO_PROXY,192.168.49.2,10.70.150.50,10.70.150.52,.bev.gv.at
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 

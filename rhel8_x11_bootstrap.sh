@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# install.sh ─ one-shot bootstrap for a fresh **Rocky / RHEL 9** workstation
+# install.sh ─ one-shot bootstrap for a fresh **Rocky / RHEL 8** workstation
 # it includes qtile-x11, picom, various WM utilities, python3.12, a collection of 
 # additional repos, snap and flatpak versions of the most heavily used everyday 
 # applications to keep them as up-to-date as possible.
@@ -118,42 +118,35 @@ flatpak install --user -y flathub \
 
 ### 5. Builds from source ──────────────────────────────────────────────────────
 # 5.0 i3-lock
-skip_if_installed i3lock bash -lc "
+install_i3lock() {
   set -e
-# 1. Install all build‐time dependencies from RHEL/EL8 proper
-    dnf install -y \
-    pkgconf-pkg-config \
-    meson ninja-build \
-    pam-devel cairo-devel libev-devel \
-    libX11-devel \
-    libxkbcommon-devel libxkbcommon-x11-devel \
-    libxcb-devel \
-    xcb-util-devel xcb-util-image-devel \
-    xcb-util-keysyms-devel xcb-util-renderutil-devel \
-    xcb-util-wm-devel xcb-util-cursor-devel \
-    xorg-x11-util-macros \
-    autoconf automake libtool copyq
+  # 1. Install all build-time dependencies
+  dnf install -y pkgconf-pkg-config meson ninja-build pam-devel cairo-devel \
+    libev-devel libX11-devel libxkbcommon-devel libxkbcommon-x11-devel \
+    libxcb-devel xcb-util-devel xcb-util-image-devel xcb-util-keysyms-devel \
+    xcb-util-renderutil-devel xcb-util-wm-devel xcb-util-cursor-devel \
+    xorg-x11-util-macros autoconf automake libtool copyq
 
-
-# 2. Build & install xcb-util-xrm (prefix /usr so pkg-config finds it)
-  [ -d /tmp/xcb-util-xrm ] && rm -rf /tmp/xcb-util-xrm
+  # 2. Build & install xcb-util-xrm
+  rm -rf /tmp/xcb-util-xrm
   git clone https://github.com/Airblader/xcb-util-xrm.git --depth 1 /tmp/xcb-util-xrm
   git clone https://gitlab.freedesktop.org/xorg/util/xcb-util-m4.git /tmp/xcb-util-xrm/m4
   cd /tmp/xcb-util-xrm
   ./autogen.sh
   ./configure --prefix=/usr --disable-dependency-tracking
-  make -j\$(nproc)
+  make -j"$(nproc)"
   make install
 
-# 3. Build & install i3lock
-  [ -d /tmp/i3lock ] && rm -rf /tmp/i3lock
+  # 3. Build & install i3lock
+  rm -rf /tmp/i3lock
   git clone https://github.com/i3/i3lock.git --depth 1 /tmp/i3lock
   cd /tmp/i3lock
-  [ -d build ] && rm -rf build
+  rm -rf build
   meson setup build --prefix=/usr --buildtype=release
   ninja -C build
   ninja -C build install
-"
+}
+skip_if_installed i3lock install_i3lock
 
 # 5.1 dunst
 
@@ -162,25 +155,20 @@ skip_if_installed i3lock bash -lc "
 python3.12 -m venv /tmp/meson-venv
 /tmp/meson-venv/bin/pip install --upgrade meson>=0.60.0 ninja packaging
 
-skip_if_installed dunst bash -lc "
-  set -euo pipefail
+install_dunst() {
+# 1) clean any old clone
+[ -d /tmp/dunst ] && rm -rf /tmp/dunst
+# 2) install the C deps
+dnf -y install \
+  pkgconfig gdk-pixbuf2-devel libXrandr-devel \
+  wayland-devel wayland-protocols-devel \
+  libnotify-devel
 
-  # 1) clean any old clone
-  [ -d /tmp/dunst ] && rm -rf /tmp/dunst
-
-
-
-  # 2) install the C deps
-  dnf -y install \
-    pkgconfig gdk-pixbuf2-devel libXrandr-devel \
-    wayland-devel wayland-protocols-devel \
-    libnotify-devel
-
-  # 3) clone latest dunst
+# 3) clone latest dunst
   git clone --depth 1 https://github.com/dunst-project/dunst.git /tmp/dunst
   cd /tmp/dunst
 
-  # 4) inject a GLib<2.58 fallback for g_rc_box_*
+# 4) inject a GLib<2.58 fallback for g_rc_box_*
   sed -i '1i\
 /* Compatibility for GLib < 2.58: fallback to g_slice_ */\
 #include <glib.h> \
@@ -194,38 +182,38 @@ skip_if_installed dunst bash -lc "
 #define g_rc_box_release_full(p,d) ((d)(p)) \
 #endif' src/draw.c
 
-  # 5) build & install via Meson/Ninja
+# 5) build & install via Meson/Ninja
   /tmp/meson-venv/bin/meson setup build --prefix=/usr/local --buildtype=release
   /tmp/meson-venv/bin/meson compile -C build
   /tmp/meson-venv/bin/meson install -C build
-
-"
-
+}
+skip_if_installed dunst install_dunst
 
 # 5.2 xss-lock
-skip_if_installed xss-lock bash -lc "
-  set -e
+install_xss_lock() {
   [ -d /tmp/xss-lock ] && rm -rf /tmp/xss-lock
-  dnf -y install gcc make cmake libX11-devel libXScrnSaver-devel xorg-x11-proto-devel libxcb-devel libxkbcommon-devel
+  dnf -y install gcc make cmake libX11-devel libXScrnSaver-devel xorg-x11-proto-devel \
+    libxcb-devel libxkbcommon-devel
   git clone https://bitbucket.org/raymonad/xss-lock /tmp/xss-lock
   cd /tmp/xss-lock
   cmake . -DCMAKE_INSTALL_PREFIX=/usr
-  make -j$(nproc)
+  make -j"$(nproc)"
   make install
-"
+}
+skip_if_installed xss-lock install_xss_lock
+
 # 5.3 feh (variety dependency)
-skip_if_installed feh bash -lc "
-  set -e
+install_feh() {
   [ -d /tmp/feh ] && rm -rf /tmp/feh
   git clone https://github.com/derf/feh.git /tmp/feh
   cd /tmp/feh
-  make
+  make -j"$(nproc)"
   make install app=1
-"
+}
+skip_if_installed feh install_feh
 
 # 5.4 rofi
-skip_if_installed rofi bash -lc "
-  set -e
+install_rofi() {
   [ -d /tmp/rofi ] && rm -rf /tmp/rofi
   dnf -y install libxkbcommon-x11-devel xcb-util-cursor-devel flex bison startup-notification-devel
   git clone --depth=1 --branch 1.7.3 https://github.com/davatorium/rofi.git /tmp/rofi
@@ -238,7 +226,8 @@ skip_if_installed rofi bash -lc "
   /tmp/meson-venv/bin/meson setup build --prefix=/usr/local --buildtype=release
   /tmp/meson-venv/bin/ninja -C build
   /tmp/meson-venv/bin/ninja -C build install
-"
+}
+skip_if_installed rofi install_rofi
 
 # 5.5 fonts & cursors
 FONT_NAME="JetBrainsMono Nerd Font"
@@ -270,14 +259,13 @@ sudo -u "$TARGET_USER" bash -lc "
     | tar -xJf - -C ~/.icons
 "
 # 5.6 direnv (misc utils)
-skip_if_installed direnv bash -l <<'EOF'
-set -e
-curl -sfL https://direnv.net/install.sh | bash
-EOF
+install_direnv() {
+  curl -sfL https://direnv.net/install.sh | bash
+}
+skip_if_installed direnv install_direnv
 
 # 5.7 lxappearance
-skip_if_installed lxappearance bash -lc "
-  set -e
+install_lxappearance() {
   dnf -y install gtk2-devel glib2-devel
   [ -d /tmp/lxappearance ] && rm -rf /tmp/lxappearance
   git clone https://github.com/lxde/lxappearance.git /tmp/lxappearance
@@ -285,14 +273,13 @@ skip_if_installed lxappearance bash -lc "
   [ -f Makefile ] && make clean
   ./autogen.sh --prefix=/usr/local
   ./configure --prefix=/usr/local
-  make
+  make -j"$(nproc)"
   make install
-"
+}
+skip_if_installed lxappearance install_lxappearance
 
 ### 6. Build-time deps & picom ────────────────────────────────────────────────
-skip_if_installed picom bash -lc "
-  set -e
-
+install_picom() {
   # 0. Make sure clang is there
   dnf -y groupinstall 'Development Tools'
   dnf -y install clang clang-devel llvm
@@ -306,8 +293,8 @@ skip_if_installed picom bash -lc "
     --prefix=/usr \
     --sysconfdir=/etc \
     --libdir=/usr/lib64
-  make -j$(nproc)
-  sudo make install
+  make -j"$(nproc)"
+  make install
   sudo ldconfig
 
   # 2. Install all the other deps you still need via dnf
@@ -341,83 +328,157 @@ skip_if_installed picom bash -lc "
     -Dbuildtype=release \
     -Dwerror=false
  /tmp/meson-venv/bin/ninja -C build
-  sudo /tmp/meson-venv/bin/ninja -C build install
-"
+/tmp/meson-venv/bin/ninja -C build install
+}
+skip_if_installed picom install_picom
 
 dnf -y remove xcompmgr || true
 
 # Wallpapers
 [[ -d /home/$TARGET_USER/Pictures/wallpapers ]] || \
-  git clone https://github.com/f-klement/wallpapers.git /home/$TARGET_USER/Pictures/wallpapers
+  git clone https://github.com/f-klement/wallpapers.git /home/"$TARGET_USER"/Pictures/wallpapers
 
-### 7. Node, Bun and uv for Python
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-export NVM_DIR="$HOME/.nvm"               
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm 
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-nvm install node
-nvm use node
-dnf install -y libatomic
-curl -fsSL https://bun.com/install | bash
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
+### USER SPACE TOOLS ###
 
-curl -LsSf https://astral.sh/uv/install.sh | sh
-echo 'eval "$(uv generate-shell-completion zsh)"' >> ~/.zshrc
-echo 'eval "$(uvx --generate-shell-completion zsh)"' >> ~/.zshrc
+### 7. Node & Bun 4 TS and UV 4 Python --------------------------------
 
+install_nvm() {
+  dnf install -y libatomic
+# The single quotes around 'EOF' prevent root from expanding $HOME early.
+  sudo -i -u "$TARGET_USER" bash << 'EOF'
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+    export NVM_DIR="$HOME/.nvm"               
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+    nvm install node
+    nvm use node
+EOF
+}
+skip_if_installed nvm install_nvm
 
-### 8. clis & tuis
+install_bun() {
+  sudo -i -u "$TARGET_USER" bash << 'EOF'
+    curl -fsSL https://bun.com/install | bash
+    echo 'export BUN_INSTALL="$HOME/.bun"' >> "$HOME/.zshrc"
+    echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> "$HOME/.zshrc"
+EOF
+}
+skip_if_installed bun install_bun
+
+install_uv() {
+  sudo -i -u "$TARGET_USER" bash << 'EOF'
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    echo 'eval "$(uv generate-shell-completion zsh)"' >> "$HOME/.zshrc"
+    echo 'eval "$(uvx --generate-shell-completion zsh)"' >> "$HOME/.zshrc"
+EOF
+}
+skip_if_installed uv install_uv
+
+### 8.CLIs & TUIs ---------------------------------------------
+
 # fzf
-git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
-~/.fzf/install
-# ripgrep
-# rust for rg
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source $HOME/.cargo/env
+install_fzf() {
+  sudo -i -u "$TARGET_USER" bash << 'EOF'
+    git clone --depth 1 https://github.com/junegunn/fzf.git "$HOME/.fzf"
+    "$HOME/.fzf/install" --all
+EOF
+}
+skip_if_installed fzf install_fzf
 
-#rg
-git clone https://github.com/BurntSushi/ripgrep
-cd ripgrep
-cargo build --release
-mv ./target/release/rg /usr/local/bin/
+# ripgrep
+
+install_ripgrep() {
+  # Rust for rg
+  # Rustup requires -y to be non-interactive
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  source "$HOME/.cargo/env"
+  cd /tmp
+  [ -d ripgrep ] && rm -rf ripgrep
+  git clone https://github.com/BurntSushi/ripgrep
+  cd ripgrep
+  cargo build --release
+  mv ./target/release/rg /usr/local/bin/
+}
+skip_if_installed ripgrep install_ripgrep
 
 #docker & lazydocker
-dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin.x86_64
-systemctl start docker
-systemctl enable docker
-usermod -aG docker "$TARGET_USER"
 
-curl https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash  
+install_docker() {
+  dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+  dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin.x86_64
+  systemctl enable --now docker
+  usermod -aG docker "$TARGET_USER"
+}
+skip_if_installed docker install_docker
 
-# homebrew (snap and flatpak don't always cover relevant dev dependancies, eg. a new gcc compiler)
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
-echo >> /home/admin/.zshrc
-echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"' >> /home/admin/.zshrc
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
-/home/linuxbrew/.linuxbrew/bin/brew install gcc
+install_lazydocker() {
+  sudo -i -u "$TARGET_USER" bash << 'EOF'
+    curl https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash  
+    # Outer single quotes protect the inner double quotes natively!
+    echo 'alias ld="lazydocker"' >> "$HOME/.zshrc"
+EOF
+}
+skip_if_installed lazydocker install_lazydocker
 
-### 9. Bruno for api testing
-dnf install -y fuse
-npm install -g @usebruno/cli
-AIL_URL=$(curl -s https://api.github.com/repos/TheAssassin/AppImageLauncher/releases | \
-  jq -r '[.[] | select(.prerelease == false and (.tag_name | test("alpha|beta|rc"; "i") | not))][0] | .assets[] | select(.name | endswith("x86_64.rpm")) | .browser_download_url' | head -n 1)
+# Homebrew for linux, for modern Compilers and Buildchains
 
-echo "Downloading Stable AppImageLauncher from: $AIL_URL"
-curl -L "$AIL_URL" -o /tmp/appimagelauncher.rpm
-dnf localinstall -y /tmp/appimagelauncher.rpm
-rm /tmp/appimagelauncher.rpm
-dnf install qt5-qtbase qt5-qtbase-gui
+install_brew() {
+  sudo -i -u "$TARGET_USER" bash << 'EOF'
+    # Force non-interactive so brew doesn't stall waiting for the Enter key
+    export NONINTERACTIVE=1
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"' >> "$HOME/.zshrc"
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
+    brew install gcc
+EOF
+}
+skip_if_installed brew install_brew
 
-# bruno appimage
-BRUNO_URL=$(curl -s https://api.github.com/repos/usebruno/bruno/releases | \
-  jq -r '[.[] | select(.prerelease == false and (.tag_name | test("alpha|beta|rc"; "i") | not))][0] | .assets[] | select(.name | contains("x86_64") and endswith(".AppImage")) | .browser_download_url' | head -n 1)
+### 9. System Tools & API Testing ──────────────────────────────────────────────
 
-mkdir -p "$HOME/Applications"
-echo "Downloading Stable Bruno from: $BRUNO_URL"
-curl -L "$BRUNO_URL" -o "$HOME/Applications/Bruno.AppImage"
-chmod +x "$HOME/Applications/Bruno.AppImage"
+# Bruno for apis
+
+install_bruno() {
+  dnf install -y fuse qt5-qtbase qt5-qtbase-gui
+  npm install -g @usebruno/cli
+  
+  local AIL_URL
+  AIL_URL=$(curl -s https://api.github.com/repos/TheAssassin/AppImageLauncher/releases | \
+    jq -r '[.[] | select(.prerelease == false and (.tag_name | test("alpha|beta|rc"; "i") | not))][0] | .assets[] | select(.name | endswith("x86_64.rpm")) | .browser_download_url' | head -n 1)
+
+  echo "Downloading Stable AppImageLauncher from: $AIL_URL"
+  curl -L "$AIL_URL" -o /tmp/appimagelauncher.rpm
+  dnf localinstall -y /tmp/appimagelauncher.rpm
+  rm /tmp/appimagelauncher.rpm
+
+  # Download the Bruno AppImage for the target user
+  sudo -i -u "$TARGET_USER" bash << 'EOF'
+    BRUNO_URL=$(curl -s https://api.github.com/repos/usebruno/bruno/releases | \
+      jq -r '[.[] | select(.prerelease == false and (.tag_name | test("alpha|beta|rc"; "i") | not))][0] | .assets[] | select(.name | contains("x86_64") and endswith(".AppImage")) | .browser_download_url' | head -n 1)
+
+    mkdir -p "$HOME/Applications"
+    curl -L "$BRUNO_URL" -o "$HOME/Applications/Bruno.AppImage"
+    chmod +x "$HOME/Applications/Bruno.AppImage"
+    echo "Please register Bruno on the first launch systemwide with Appimage Laucher at: HOME/Applications/Bruno.AppImage"
+EOF
+}
+skip_if_installed bruno install_bruno
+
+# system cleanup utilities
+
+install_bleachbit() {
+  dnf -y install epel-release 
+  dnf install -y bleachbit
+}
+skip_if_installed bleachbit install_bleachbit
+
+install_gdu() {
+  cd /tmp
+  curl -L https://github.com/dundee/gdu/releases/latest/download/gdu_linux_amd64.tgz | tar xz
+  chmod +x gdu_linux_amd64
+  mv gdu_linux_amd64 /usr/bin/gdu
+}
+skip_if_installed gdu install_gdu
 
 ### 10. Default applications
 mkdir -p /home/$TARGET_USER/.config
