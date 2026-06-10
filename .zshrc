@@ -149,6 +149,7 @@ alias python=/usr/bin/python3.12
 alias python3=/usr/bin/python3.12
 alias pip=pip3
 alias kitten='kitty +kitten'
+
 # ~/.zshrc: your interactive zsh startup
 
 # 1) Only run for interactive shells
@@ -190,6 +191,7 @@ alias la='ls -a'
 alias l='ls -CF'
 alias ls='ls --color=auto -a'
 
+alias deveu='ssh klement@10.70.5.80'
 alias dnfu='sudo -S dnf update -y && sudo -S flatpak update -y && sudo snap refresh'
 alias qenv='source ~/.local/venvs/qtile/bin/activate'
 alias qcheck='~/.local/venvs/qtile/bin/qtile check'
