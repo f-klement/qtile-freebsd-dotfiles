@@ -206,7 +206,7 @@ alias denv='nano ./.env'
 alias treex="tree -I 'node_modules|dist|.git|.sonar|.scannerwork' --prune -a -C"
 alias ld="lazydocker"
 alias flatpak='http_proxy="$http_proxy" https_proxy="$https_proxy" ftp_proxy="$ftp_proxy" all_proxy="$all_proxy" flatpak'
-alias sshlukas='ssh klement@10.70.150.50'
+
 
 # 9) ex – archive extractor
 ex() {
@@ -261,16 +261,6 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 alias kubectl="minikube kubectl --"
-alias db="docker build \
---add-host=NEXUS_HOST:NEXUS_IP \
---build-arg NEXUS_HOST=NEXUS_HOST \
---build-arg NEXUS_NPM_AUTH=NEXUS_NPM_AUTH \
---build-arg NEXUS_TOKEN=NEXUS_TOKEN
-"
-
-export SONARQUBE_URL="http://10.70.150.52:9001"
-export SONARQUBE_TOKEN="squ_ffd928b7f25175a38b619b7857b7474c4907a598"
-export NO_PROXY=$NO_PROXY,192.168.49.2,10.70.150.50,10.70.150.52,.bev.gv.at
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
