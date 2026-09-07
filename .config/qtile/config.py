@@ -473,31 +473,14 @@ def init_widgets(include_systray=True, include_updates=True):
             colour_no_updates=doom_colors[9],   # Grey
             update_interval=1800, # Check every 30 mins
             mouse_callbacks={
-                # Left-click to run a system update in a new terminal
-                "Button1": lazy.spawn(terminal + " -e sh -c \""
-                    
-                    # 1. DNF (as root, no confirmation)
-                    "echo '--- 1/4: Updating DNF packages ---'; "
-                    "sudo dnf update -y; "
-                    
-                    # 2. Flatpak, no confirmation
-                    "echo; echo '--- 2/4: Updating Flatpak packages ---'; "
-                    "sudo flatpak update -y; "
-                    
-                    # 3. Snap (as root)
-                    "echo; echo '--- 3/4: Updating Snap packages ---'; "
-                    "sudo snap refresh; "
-
-                    # 4. Homebrew
-                    "echo; echo '--- 4/4: Update Homebrew packages ---'; "
-                    "/home/linuxbrew/.linuxbrew/bin/brew update; /home/linuxbrew/.linuxbrew/bin/brew upgrade;"
-                    
-                    # 5. Wait for user input
-                    "echo; echo '--- All updates complete. Press Enter to close. ---'; "
-                    "read"
-                    
-                    "\""  # Close the sh -c string
-                )
+                # Left-click runs the full update chain in a new terminal.
+                # The commands live in system_update.sh so the sudo keep-alive
+                # loop does not have to survive shell quoting inside lazy.spawn.
+                "Button1": lazy.spawn([
+                    terminal,
+                    "-e",
+                    os.path.expanduser("~/.config/qtile/system_update.sh"),
+                ])
             },
             padding=1,
         ),
@@ -509,12 +492,13 @@ def init_widgets(include_systray=True, include_updates=True):
             padding=6,
             fontsize=16,
             mouse_callbacks={
-                 "Button1": lazy.spawn(terminal + " -e sh -c \""
-                    # reboobt the system
-                    "echo '--- rebooting? ---'; "
-                    "sudo reboot; "
-           "\"" 
-        )}),
+                 # The title of the spawned window names the action, so the
+                 # password prompt is never anonymous. See system_reboot.sh.
+                 "Button1": lazy.spawn([
+                     terminal,
+                     "-e",
+                     os.path.expanduser("~/.config/qtile/system_reboot.sh"),
+                 ])}),
         widget.Spacer(length=4),
     ])
     return widgets
