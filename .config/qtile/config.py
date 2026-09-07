@@ -45,30 +45,86 @@ files = "nautilus"
 notes = "flatpak run md.obsidian.Obsidian"
 
 # ── helpers ───────────────────────────────────────────────────────────────
+def _physical_screen_order(qtile):
+    """qtile numbers screens in RandR output order, which is NOT the order they
+    sit in physically. On this machine:
+
+        qtile 0 = 1920x1080 @ x=0     small built-in
+        qtile 1 = 1920x1200 @ x=3120  landscape  (rightmost!)
+        qtile 2 = 1200x1920 @ x=1920  portrait   (middle)
+
+    So walking 0 -> 1 -> 2 jumps small -> right -> middle, which is why the
+    traversal keys felt wrong. Sorting by x (then y) gives the order you
+    actually see: small -> portrait -> landscape.
+    """
+    return sorted(range(len(qtile.screens)),
+                  key=lambda i: (qtile.screens[i].x, qtile.screens[i].y))
+
+
+def _relative_screen(qtile, direction):
+    order = _physical_screen_order(qtile)
+    if not order:
+        return qtile.current_screen.index
+    try:
+        pos = order.index(qtile.current_screen.index)
+    except ValueError:
+        pos = 0
+    step = 1 if direction == "next" else -1
+    return order[(pos + step) % len(order)]
+
+
+@lazy.function
+def goto_group(qtile, name):
+    """Switch to a group ON ITS PINNED SCREEN.
+
+    lazy.group[name].toscreen() shows the group on whatever screen is currently
+    focused, which drags a pinned group off its monitor and swaps whatever was
+    there onto the pinned group's screen. That silently destroys the pinning.
+    """
+    target = GROUP_SCREEN.get(name)
+    if target is not None and target < len(qtile.screens):
+        qtile.groups_map[name].toscreen(target)
+        qtile.focus_screen(target)
+    else:
+        qtile.groups_map[name].toscreen()
+
+
+@lazy.function
+def move_window_to_group(qtile, name, follow=True):
+    """Move the focused window to a group, showing that group on its pinned
+    screen rather than yanking it to the current one.
+
+    lazy.window.togroup(name, switch_group=True) has the same defect as above:
+    it moves the window correctly but then pulls the group onto the current
+    screen, so the workspaces swap monitors and it looks like the command was
+    ignored.
+    """
+    win = qtile.current_window
+    if win is None:
+        return
+    win.togroup(name)
+    target = GROUP_SCREEN.get(name)
+    if target is not None and target < len(qtile.screens):
+        qtile.groups_map[name].toscreen(target)
+        if follow:
+            qtile.focus_screen(target)
+    elif follow:
+        qtile.groups_map[name].toscreen()
+
+
+@lazy.function
+def focus_screen_in_direction(qtile, direction="next"):
+    """Move the cursor/focus to the next screen in PHYSICAL order."""
+    qtile.focus_screen(_relative_screen(qtile, direction))
+
+
 @lazy.function
 def move_window_to_screen(qtile, direction="next"):
-    """
-    Moves the focused window to the next or previous screen.
-    """
-    # Get the index of the current screen
-    current_screen_index = qtile.current_screen.index
-
-    # Get the total number of screens
-    num_screens = len(qtile.screens)
-
-    # Determine the target screen index
-    if direction == "next":
-        target_screen_index = (current_screen_index + 1) % num_screens
-    else: # "prev"
-        target_screen_index = (current_screen_index - 1) % num_screens
-
-    # Get the target screen's group
+    """Move the focused window to the next/prev screen in PHYSICAL order."""
+    target_screen_index = _relative_screen(qtile, direction)
     target_group = qtile.screens[target_screen_index].group
-
-    # Move the window
     if qtile.current_window and target_group:
         qtile.current_window.togroup(target_group.name)
-        # Optional: also switch focus to that screen
         qtile.focus_screen(target_screen_index)
 
 # ── helpers ───────────────────────────────────────────────────────────────
@@ -130,7 +186,10 @@ keys = [
     Key([mod, "control"], "r", lazy.reload_config(), desc="Reload the config"),
     Key([mod, "control"], "q", lazy.shutdown(), desc="Shutdown Qtile"),
     Key([mod], "r", lazy.spawncmd(prompt="Run: "), desc="Spawn a command"),
-    Key([mod],"Tab", lazy.next_screen(), desc='Next monitor'),
+    Key([mod], "Tab", focus_screen_in_direction(direction="next"),
+        desc='Next monitor (physical order)'),
+    Key([mod, "shift"], "Tab", focus_screen_in_direction(direction="prev"),
+        desc='Previous monitor (physical order)'),
     Key([mod, "mod1"], "Left", move_window_to_screen(direction="prev"), desc="Move window to previous monitor"),
     Key([mod, "mod1"], "Right", move_window_to_screen(direction="next"), desc="Move window to next monitor"),
 ]
@@ -194,7 +253,58 @@ for vt in range(1, 8):
 #        )
 #    )
 
-groups = [Group(i) for i in "123456789"]
+# ── screen roles ──────────────────────────────────────────────────────────
+# Resolved from xrandr at config load. xrandr lists outputs in the same order
+# qtile numbers its screens, so index i here == qtile screen i.
+def _detect_screen_roles():
+    import re
+    roles = {"small": 0, "portrait": 0, "landscape": 0}
+    try:
+        out = subprocess.check_output(["xrandr", "--query"]).decode()
+    except Exception:
+        return roles
+    mons = []
+    for line in out.splitlines():
+        m = re.match(r"^(\S+) connected (?:primary )?(\d+)x(\d+)\+(\d+)\+(\d+)", line)
+        if m:
+            w, h = int(m.group(2)), int(m.group(3))
+            mons.append({"w": w, "h": h, "x": int(m.group(4)), "area": w * h})
+    if not mons:
+        return roles
+    idx = list(range(len(mons)))
+    small = min(idx, key=lambda i: mons[i]["area"])          # built-in laptop panel
+    portrait = next((i for i in idx if mons[i]["h"] > mons[i]["w"]), small)
+    landscape = next((i for i in idx if i not in (small, portrait)), small)
+    return {"small": small, "portrait": portrait, "landscape": landscape}
+
+SCREEN = _detect_screen_roles()
+
+# Which display each group lives on.
+GROUP_SCREEN = {
+    "1": SCREEN["portrait"],    # brave
+    "2": SCREEN["landscape"],   # codium
+    "5": SCREEN["small"],       # nautilus
+    "6": SCREEN["small"],       # obsidian
+}
+
+# Where apps spawn. wm_class values taken from the running windows, NOT from the
+# .desktop StartupWMClass - codium's desktop file claims "VSCodium" but the real
+# runtime class is "codium", so the desktop hint would never have matched.
+GROUP_MATCHES = {
+    "1": [Match(wm_class="brave-browser")],
+    "2": [Match(wm_class="codium")],
+    "5": [Match(wm_class="nautilus")],
+    "6": [Match(wm_class="md.obsidian.obsidian")],
+}
+
+groups = []
+for _name in "123456789":
+    _kw = {}
+    if _name in GROUP_SCREEN:
+        _kw["screen_affinity"] = GROUP_SCREEN[_name]
+    if _name in GROUP_MATCHES:
+        _kw["matches"] = GROUP_MATCHES[_name]
+    groups.append(Group(_name, **_kw))
 
 for i in groups:
     keys.extend(
@@ -203,15 +313,15 @@ for i in groups:
             Key(
                 [mod],
                 i.name,
-                lazy.group[i.name].toscreen(),
-                desc=f"Switch to group {i.name}",
+                goto_group(i.name),
+                desc=f"Switch to group {i.name} (on its pinned screen)",
             ),
             # mod + shift + group number = switch to & move focused window to group
             Key(
                 [mod, "shift"],
                 i.name,
-                lazy.window.togroup(i.name, switch_group=True),
-                desc=f"Switch to & move focused window to group {i.name}",
+                move_window_to_group(i.name),
+                desc=f"Move focused window to group {i.name} (keeps pinning)",
              ),
 #             # Or, use below if you prefer not to switch to that group.
 #             # # mod + shift + group number = move focused window to group
