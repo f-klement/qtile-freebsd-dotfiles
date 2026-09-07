@@ -660,14 +660,32 @@ chown "$TARGET_USER:$TARGET_USER" "/home/$TARGET_USER/.config/gnome-session/sess
 # tracker indexes $HOME on a dev box and tracker-extract crashed 25+ times in a
 # single afternoon here. It is BOTH an XDG autostart AND a systemd user unit AND
 # D-Bus activated, so all three paths need closing.
+# A bare "[Desktop Entry]\nHidden=true" is NOT enough: without Type= and Name=
+# the file is an invalid desktop entry, GLib rejects it, and gnome-session
+# silently falls back to the system copy in /etc/xdg/autostart. Verified with
+# strace - gnome-session DOES open the user override, it just discards it.
+# X-GNOME-Autostart-enabled=false is the key gnome-session honours directly.
+hide_autostart() {
+  local dir="$1" name="$2"
+  cat > "$dir/$name.desktop" <<ENTRY
+[Desktop Entry]
+Type=Application
+Name=$name (disabled)
+Exec=/bin/true
+Hidden=true
+X-GNOME-Autostart-enabled=false
+NoDisplay=true
+ENTRY
+  chown "$TARGET_USER:$TARGET_USER" "$dir/$name.desktop"
+}
+
 AS="/home/$TARGET_USER/.config/autostart"
 install -d -o "$TARGET_USER" -g "$TARGET_USER" "$AS"
 for n in tracker-store tracker-miner-fs tracker-miner-apps tracker-extract \
          gnome-software-service gsettings-data-convert gnome-shell-overrides-migration \
          user-dirs-update-gtk orca-autostart; do
   [ -f "/etc/xdg/autostart/$n.desktop" ] || continue
-  printf '[Desktop Entry]\nHidden=true\n' > "$AS/$n.desktop"
-  chown "$TARGET_USER:$TARGET_USER" "$AS/$n.desktop"
+  hide_autostart "$AS" "$n"
 done
 
 # The gsd-* plugins are listed in BOTH gnome.session's RequiredComponents AND
@@ -683,8 +701,7 @@ for f in /etc/xdg/autostart/org.gnome.SettingsDaemon.*.desktop; do
   [ -e "$f" ] || continue
   b=$(basename "$f" .desktop); plugin=${b##*.}
   echo "$GSD_KEEP" | grep -qw "$plugin" && continue
-  printf '[Desktop Entry]\nHidden=true\n' > "$AS/$b.desktop"
-  chown "$TARGET_USER:$TARGET_USER" "$AS/$b.desktop"
+  hide_autostart "$AS" "$b"
 done
 sudo -iu "$TARGET_USER" bash -c '
   systemctl --user mask tracker-store tracker-miner-fs tracker-miner-apps \
