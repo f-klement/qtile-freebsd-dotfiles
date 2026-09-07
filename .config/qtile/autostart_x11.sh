@@ -55,16 +55,15 @@ export XCURSOR_SIZE="24"
 #picom -b --config ~/.config/picom/picom.conf &
 
 # wallpaper service
+# Enumerate the wallpaper list ONCE at startup. The previous version ran a full
+# recursive find every 300s (288 directory walks/day), pulling dir entries and
+# image data through the page cache and evicting something else each time.
+WALLPAPER_DIR="$HOME/Pictures/wallpapers"
+mapfile -t WALLPAPERS < <(find "$WALLPAPER_DIR" -type f \( -iname '*.jpg' -o -iname '*.png' \) 2>/dev/null)
+
 feh_random() {
-  # directory containing your wallpapers (and subfolders)
-  local dir=~/Pictures/wallpapers
-
-  # find all .jpg/.png files, pick one at random
-  local file
-  file=$(find "$dir" -type f \( -iname '*.jpg' -o -iname '*.png' \) | shuf -n1)
-
-  # set it as your background (fill mode)
-  feh --bg-fill "$file"
+  (( ${#WALLPAPERS[@]} == 0 )) && return 0
+  feh --bg-fill "${WALLPAPERS[RANDOM % ${#WALLPAPERS[@]}]}"
 }
 
 # initial wallpaper
@@ -85,11 +84,16 @@ xset s 300 -dpms
 # blank after 5 min
 xset s 300 -dpms
 # lock using our script
-exec dbus-run-session --exit-with-session xss-lock -- ~/.config/qtile/lock_with_random_bg_x11.sh &
+# NOTE: previously wrapped in `dbus-run-session`, which started a SECOND session
+# bus just for the locker -- xss-lock then sat on a different bus than the rest
+# of the session, so idle/inhibit signalling between apps and the locker could
+# not work. Run it on the session's existing bus.
+xss-lock -- ~/.config/qtile/lock_with_random_bg_x11.sh &
 
 # ── lauch user applications ──────────────
 # flatpak
-flatpak run com.brave.Browser &
+# Prefer native Brave (RPM) once installed; flatpak is the fallback.
+if command -v brave-browser >/dev/null 2>&1; then brave-browser & else flatpak run com.brave.Browser & fi
 flatpak run md.obsidian.Obsidian &
 
 # native apps & snaps

@@ -25,6 +25,7 @@
 # SOFTWARE.
 
 import os
+import shutil
 import colors as color_mod
 import subprocess
 from zoneinfo import ZoneInfo 
@@ -37,7 +38,8 @@ from types import FunctionType
 
 mod = "mod4"
 terminal = "kitty"
-browser = "flatpak run com.brave.Browser"
+# Prefer the native RPM once installed; fall back to the flatpak until then.
+browser = "brave-browser" if shutil.which("brave-browser") else "flatpak run com.brave.Browser"
 editor  = "codium"
 files = "nautilus"
 notes = "flatpak run md.obsidian.Obsidian"
@@ -284,7 +286,7 @@ monitor_count = get_monitor_count()
 
 # ──────────────────────────────────────────────────────────────────────────
 
-def init_widgets(include_systray=True):
+def init_widgets(include_systray=True, include_updates=True):
     widgets = [
         # ---- LEFT cluster ---------------------------------------------------
         widget.Spacer(length=4),  # tiny padding
@@ -315,9 +317,10 @@ def init_widgets(include_systray=True):
 
         # ---- RIGHT cluster --------------------------------------------------
         widget.Net(
+            interface="eth0",   # pin: avoids enumerating docker0/virbr0/veth* each poll
             # ▾/▴ are 1-char arrows from the Nerd-Font set
             format="{down:.0f}{down_suffix}▾{up:.0f}{up_suffix}▴",
-            update_interval=3,
+            update_interval=5,
             mouse_callbacks={
                 "Button3": lazy.spawn("nm-connection-editor"),  # right-click → open NetworkManager GUI
             },
@@ -341,14 +344,17 @@ def init_widgets(include_systray=True):
             foreground = doom_colors[8],
             format="{MemUsed:4.1f}G",   # e.g. “  7.6 G”
             measure_mem="G",               # tell the widget we want GiB/GB
-            update_interval=2,
+            update_interval=5,
         ),
-        widget.CPU(foreground = doom_colors[4],format=" {load_percent:>3}%", update_interval=2)
+        widget.CPU(foreground = doom_colors[4],format=" {load_percent:>3}%", update_interval=5)
         ]
     if include_systray:
         widgets.append(widget.Systray(icon_size=12, padding=2))
     widgets.extend([
         widget.Spacer(length=3),
+    ])
+    # CheckUpdates spawns a dnf process per poll; keep it on one bar only.
+    widgets.extend([
         widget.CheckUpdates(
             distro="Fedora",  # This uses the DNF backend, which works for Rocky/RHEL
             display_format="󱧕 {updates}", #  is a Nerd Font package icon
@@ -385,6 +391,8 @@ def init_widgets(include_systray=True):
             },
             padding=1,
         ),
+    ] if include_updates else [])
+    widgets.extend([
         widget.Spacer(length=1),
         widget.TextBox(
             text="⏻",
@@ -406,7 +414,7 @@ def init_widgets(include_systray=True):
 
 # Create one Screen/bar per detected monitor
 screens = [
-    Screen(top=bar.Bar(init_widgets(include_systray=(i == 0)), 28, opacity=0.70))
+    Screen(top=bar.Bar(init_widgets(include_systray=(i == 0), include_updates=(i == 0)), 28, opacity=0.70))
     for i in range(monitor_count)
 ]
 
@@ -537,3 +545,34 @@ def start_once():
         autostart_script = os.path.join(home, '.config/qtile/autostart_x11.sh')
     subprocess.call([autostart_script])
 
+
+
+# ── glibc heap trim ──────────────────────────────────────────────────────────
+# qtile's main (brk) arena ratchets upward: the polling widgets fragment it, so
+# the top free chunk stays small and glibc's dynamic trim threshold drifts up
+# until it effectively never returns pages. The heap then only grows, gets
+# swapped out, and every gen-2 GC has to fault it all back in -- which stalls
+# the WM event loop. Force an explicit trim on a timer.
+import ctypes as _ctypes
+
+MALLOC_TRIM_INTERVAL = 900  # seconds
+
+try:
+    _libc = _ctypes.CDLL("libc.so.6", use_errno=True)
+except OSError as _exc:  # pragma: no cover - non-glibc
+    _libc = None
+    logger.warning("malloc_trim unavailable: %s", _exc)
+
+
+def _malloc_trim():
+    if _libc is not None:
+        try:
+            _libc.malloc_trim(0)
+        except Exception as exc:
+            logger.warning("malloc_trim failed: %s", exc)
+    qtile.call_later(MALLOC_TRIM_INTERVAL, _malloc_trim)
+
+
+@hook.subscribe.startup_complete
+def _start_malloc_trim():
+    qtile.call_later(MALLOC_TRIM_INTERVAL, _malloc_trim)

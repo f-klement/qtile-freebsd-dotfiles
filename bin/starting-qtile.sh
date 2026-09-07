@@ -32,6 +32,14 @@ export SSH_AUTH_SOCK GNOME_KEYRING_CONTROL
 dbus-update-activation-environment --systemd GNOME_KEYRING_CONTROL SSH_AUTH_SOCK
 
 # ── 3. The Window Manager Handover ───────────────────────────────────────
+# glibc allocator tuning. MALLOC_TRIM_THRESHOLD_ pins the trim threshold and
+# disables glibc's dynamic auto-tuning, which otherwise drifts upward until the
+# main arena is never trimmed -- that is what lets qtile's heap ratchet to
+# hundreds of MB and then get swapped out. MALLOC_ARENA_MAX caps the per-thread
+# arenas (qtile runs ~9 threads; default would allow 8*ncores of them).
+export MALLOC_TRIM_THRESHOLD_=131072
+export MALLOC_ARENA_MAX=2
+
 # Start Qtile if available
 if [[ -x "$VENV_QTILE" ]]; then
   echo "[$(date)] Starting Qtile from $VENV_QTILE" >> "$LOGFILE"
