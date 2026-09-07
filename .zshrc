@@ -270,7 +270,7 @@ alias db="docker build \
 
 export SONARQUBE_URL="http://10.70.150.52:9001"
 export SONARQUBE_TOKEN="squ_ffd928b7f25175a38b619b7857b7474c4907a598"
-export NO_PROXY=$NO_PROXY,192.168.49.2,10.70.150.50,10.70.150.52,.bev.gv.at
+export NO_PROXY=${NO_PROXY:+$NO_PROXY,}192.168.49.2,10.70.150.50,10.70.150.52,.bev.gv.at
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
@@ -279,3 +279,20 @@ if [ /usr/local/bin/kubectl ]; then source <(kubectl completion zsh); fi
 
 # Generated for envman. Do not edit.
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
+
+# opencode
+export PATH=/home/admin/.opencode/bin:$PATH
+
+# docker-ce-cli and docker-compose-plugin are still installed; the docker DAEMON
+# is not. Point them at rootless podman's Docker-compatible API so the 19 compose
+# files and 10+ project scripts keep working unmodified.
+export DOCKER_HOST="unix:///run/user/1000/podman/podman.sock"
+
+# Use podman's native build (buildah) instead of a containerized BuildKit.
+# Compose v2 otherwise spins up moby/buildkit in a container, which has no access
+# to the host trust store and therefore cannot verify the BEV Issuing CA that
+# signs docker2.bev.gv.at -> "x509: certificate signed by unknown authority".
+# Podman builds on the host and uses /etc/pki/ca-trust directly.
+# Verified: RUN --mount=type=cache still works through podman's compat API.
+export DOCKER_BUILDKIT=0
+export COMPOSE_DOCKER_CLI_BUILD=0
