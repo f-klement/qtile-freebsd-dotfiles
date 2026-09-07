@@ -19,3 +19,5 @@ src/
 .ssh
 .pgp
 .gpg
+# Maschinenlokale Secrets, nie committen
+.zshrc.local

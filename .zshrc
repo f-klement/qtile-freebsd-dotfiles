@@ -269,7 +269,6 @@ alias db="docker build \
 "
 
 export SONARQUBE_URL="http://10.70.150.52:9001"
-export SONARQUBE_TOKEN="squ_ffd928b7f25175a38b619b7857b7474c4907a598"
 export NO_PROXY=${NO_PROXY:+$NO_PROXY,}192.168.49.2,10.70.150.50,10.70.150.52,.bev.gv.at
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
@@ -296,3 +295,6 @@ export DOCKER_HOST="unix:///run/user/1000/podman/podman.sock"
 # Verified: RUN --mount=type=cache still works through podman's compat API.
 export DOCKER_BUILDKIT=0
 export COMPOSE_DOCKER_CLI_BUILD=0
+
+# Maschinenlokale Secrets (SONARQUBE_TOKEN o.ae.), nicht im Repo.
+[ -f ~/.zshrc.local ] && source ~/.zshrc.local
