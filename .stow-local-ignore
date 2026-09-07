@@ -1,7 +1,15 @@
 # Comments and blank lines are allowed.
 
 #dotfiles utilities
+# NB: entries without a '/' match the BASENAME. The old literal "bootstrap.sh"
+# never matched the real filename (el_x11_bootstrap.sh), so stow was
+# symlinking the bootstrap into $HOME. Use a pattern instead.
+.*bootstrap\.sh
 bootstrap.sh
+
+# documentation and scratch dirs - not meant to be stowed into $HOME
+archive
+alternative_rpm_distros.*
 
 __pycache__
 __pycache__/*

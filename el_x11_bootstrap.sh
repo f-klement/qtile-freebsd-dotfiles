@@ -1,9 +1,20 @@
 #!/usr/bin/env bash
 #
 # install.sh ─ one-shot bootstrap for a fresh **Rocky / RHEL 8** workstation
-# it includes qtile-x11, picom, various WM utilities, python3.12, a collection of 
-# additional repos, snap and flatpak versions of the most heavily used everyday 
-# applications to keep them as up-to-date as possible.
+# qtile-x11, picom, WM utilities, python3.12, extra repos, and the everyday
+# applications, preferring upstream RPM repos over snap/flatpak where one exists
+# (snap and flatpak both went badly stale in practice: the codium snap sat 7
+# months behind, the Brave flatpak accumulated two unused runtime versions).
+#
+# Containers: rootless podman with NATIVE kernel overlay, driven by the docker
+# CLI via DOCKER_HOST. There is no docker daemon - see install_podman for why the
+# two cannot coexist on EL8.
+#
+# Section 9.5 carries the session/memory hardening from the 2026-09-07 freeze
+# investigation; see archive/docs/ for the reasoning behind each item.
+#
+# snapd is still installed below but nothing uses it any more - safe to drop if
+# you have no snap-only tooling left.
 
 set -euo pipefail
 
@@ -28,6 +39,75 @@ skip_if_installed() {
   fi
 }
 
+# --- portability layer --------------------------------------------------------
+# Most of what follows is EL8-specific only because EL8 is old. Rather than
+# hardcoding those workarounds, detect the platform and probe for capabilities,
+# so this script degrades to something much shorter on EL9/10 or Fedora.
+. /etc/os-release
+DISTRO_ID="${ID:-unknown}"; DISTRO_VER="${VERSION_ID%%.*}"
+echo "platform: $DISTRO_ID $DISTRO_VER (kernel $(uname -r))"
+
+# CRB/PowerTools changed name in EL9.
+case "$DISTRO_VER" in
+  8) CRB_REPO="powertools" ;;
+  *) CRB_REPO="crb" ;;
+esac
+
+# is a package available in any enabled repo?
+have_pkg() { dnf -q list available "$1" >/dev/null 2>&1 || rpm -q "$1" >/dev/null 2>&1; }
+
+# Install from the distro if it exists there, otherwise fall back to the
+# from-source builder. On EL8 nearly everything below falls through to source;
+# on EL9+ most of these are packaged and the source builds simply never run.
+pkg_or_build() {
+  local cmd="$1" pkg="$2"; shift 2
+  if command -v "$cmd" >/dev/null; then echo "✔ $cmd present, skipping."; return; fi
+  if have_pkg "$pkg"; then
+    echo "→ $cmd: installing packaged $pkg"
+    dnf -y install "$pkg" && return
+  fi
+  echo "→ $cmd: not packaged here, building from source"
+  "$@"
+}
+
+# --- capability probes --------------------------------------------------------
+# zswap: pick the densest zpool and best compressor the RUNNING kernel actually
+# supports, instead of assuming. Getting this wrong fails SILENTLY - the kernel
+# logs "zpool X not available, using default zbud" and carries on degraded.
+KCONF="/boot/config-$(uname -r)"
+ZSWAP_ZPOOL=""; ZSWAP_COMP=""
+if [[ -r $KCONF ]]; then
+  for z in z3fold zsmalloc zbud; do
+    grep -q "^CONFIG_${z^^}=" "$KCONF" && { ZSWAP_ZPOOL="$z"; break; }
+  done
+  for c in zstd lz4 lzo; do
+    grep -q "^CONFIG_CRYPTO_${c^^}=" "$KCONF" && { ZSWAP_COMP="$c"; break; }
+  done
+fi
+echo "zswap capability: zpool=${ZSWAP_ZPOOL:-none} compressor=${ZSWAP_COMP:-none}"
+
+# Native (kernel) overlay for rootless containers, vs the ~2-5x slower
+# fuse-overlayfs. EL8 backports this; newer kernels have it natively.
+NATIVE_OVERLAY=0
+_t=$(mktemp -d); mkdir -p "$_t"/{l,u,w,m}; chown -R "$TARGET_USER" "$_t"; chmod 755 "$_t"
+runuser -u "$TARGET_USER" -- unshare --user --map-root-user --mount sh -c \
+  "mount -t overlay overlay -o lowerdir=$_t/l,upperdir=$_t/u,workdir=$_t/w $_t/m" \
+  2>/dev/null && NATIVE_OVERLAY=1
+rm -rf "$_t"
+echo "rootless native overlay: $([[ $NATIVE_OVERLAY == 1 ]] && echo yes || echo NO - would fall back to fuse-overlayfs)"
+
+# qtile Wayland readiness. Not viable on EL8: wlroots/wayland-protocols/seatd/
+# Xwayland are unpackaged, AND the session arrives via xrdp->Xvnc which is X11
+# by construction, with no Wayland-capable remote server available
+# (gnome-remote-desktop and wayvnc both absent). On EL9+ both halves become
+# possible, so report rather than assume.
+WAYLAND_READY=1
+for p in wlroots-devel wayland-protocols seatd xorg-x11-server-Xwayland; do
+  have_pkg "$p" || { WAYLAND_READY=0; break; }
+done
+have_pkg gnome-remote-desktop || WAYLAND_READY=0
+echo "qtile-wayland viable: $([[ $WAYLAND_READY == 1 ]] && echo 'yes - see autostart_wayland.sh' || echo 'no - staying on X11')"
+
 # Ensure dnf is always non-interactive
 if ! grep -q '^defaultyes=True' /etc/dnf/dnf.conf; then
   sed -i '/^\[main\]/a defaultyes=True' /etc/dnf/dnf.conf
@@ -35,7 +115,7 @@ fi
 
 ### 1. Repos & core packages ──────────────────────────────────────────────────
 dnf -y install epel-release flatpak git
-dnf -y config-manager --set-enabled powertools
+dnf -y config-manager --set-enabled "$CRB_REPO"
 dnf -y install rpmfusion-free-release
 dnf -y install --nogpgcheck \
   https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-$(rpm -E %rhel).noarch.rpm \
@@ -60,7 +140,28 @@ dnf -y update
 sudo -iu "$TARGET_USER" flatpak remote-add --if-not-exists \
   flathub https://flathub.org/repo/flathub.flatpakrepo
 
-snap install codium --classic
+# VSCodium from the project's own RPM repo. The snap (classic confinement) went
+# 7 months without refreshing in practice, and codium is in neither Rocky nor EPEL.
+rpmkeys --import https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg
+cat > /etc/yum.repos.d/vscodium.repo <<'VSCODIUM_REPO'
+[gitlab.com_paulcarroty_vscodium_repo]
+name=download.vscodium.com
+baseurl=https://download.vscodium.com/rpms/
+enabled=1
+gpgcheck=1
+# repo_gpgcheck=0 deliberately: =1 makes dnf build a throwaway gpgme keyring in
+# /var/tmp and hang respawning gpg-agent. gpgcheck=1 still verifies every RPM.
+repo_gpgcheck=0
+gpgkey=https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg
+metadata_expire=1h
+VSCODIUM_REPO
+dnf -y install codium
+
+# Brave from its own RPM repo rather than flatpak: the flatpak lags upstream and
+# accumulated two stale runtime versions in practice.
+dnf -y config-manager --add-repo https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
+rpmkeys --import https://brave-browser-rpm-release.s3.brave.com/brave-core.asc || true
+dnf -y install brave-browser
 
 ### 2. QTile X11 (per-user venv under Python 3.12) ───────────────────────────────
 dnf -y install \
@@ -110,7 +211,6 @@ flatpak remote-add --user --if-not-exists flathub \
 su - "$TARGET_USER" -c '
 flatpak install --user -y flathub \
   io.gitlab.librewolf-community \
-  com.brave.Browser \
   com.github.tchx84.Flatseal \
   org.flameshot.Flameshot \
   md.obsidian.Obsidian
@@ -146,7 +246,7 @@ install_i3lock() {
   ninja -C build
   ninja -C build install
 }
-skip_if_installed i3lock install_i3lock
+pkg_or_build i3lock i3lock install_i3lock
 
 # 5.1 dunst
 
@@ -187,7 +287,7 @@ dnf -y install \
   /tmp/meson-venv/bin/meson compile -C build
   /tmp/meson-venv/bin/meson install -C build
 }
-skip_if_installed dunst install_dunst
+pkg_or_build dunst dunst install_dunst
 
 # 5.2 xss-lock
 install_xss_lock() {
@@ -200,7 +300,7 @@ install_xss_lock() {
   make -j"$(nproc)"
   make install
 }
-skip_if_installed xss-lock install_xss_lock
+pkg_or_build xss-lock xss-lock install_xss_lock
 
 # 5.3 feh (variety dependency)
 install_feh() {
@@ -210,7 +310,7 @@ install_feh() {
   make -j"$(nproc)"
   make install app=1
 }
-skip_if_installed feh install_feh
+pkg_or_build feh feh install_feh
 
 # 5.4 rofi
 install_rofi() {
@@ -227,7 +327,7 @@ install_rofi() {
   /tmp/meson-venv/bin/ninja -C build
   /tmp/meson-venv/bin/ninja -C build install
 }
-skip_if_installed rofi install_rofi
+pkg_or_build rofi rofi install_rofi
 
 # 5.5 fonts & cursors
 FONT_NAME="JetBrainsMono Nerd Font"
@@ -262,7 +362,7 @@ sudo -u "$TARGET_USER" bash -lc "
 install_direnv() {
   curl -sfL https://direnv.net/install.sh | bash
 }
-skip_if_installed direnv install_direnv
+pkg_or_build direnv direnv install_direnv
 
 # 5.7 lxappearance
 install_lxappearance() {
@@ -276,7 +376,7 @@ install_lxappearance() {
   make -j"$(nproc)"
   make install
 }
-skip_if_installed lxappearance install_lxappearance
+pkg_or_build lxappearance lxappearance install_lxappearance
 
 ### 6. Build-time deps & picom ────────────────────────────────────────────────
 install_picom() {
@@ -330,7 +430,7 @@ install_picom() {
  /tmp/meson-venv/bin/ninja -C build
 /tmp/meson-venv/bin/ninja -C build install
 }
-skip_if_installed picom install_picom
+pkg_or_build picom picom install_picom
 
 dnf -y remove xcompmgr || true
 
@@ -383,7 +483,7 @@ install_fzf() {
     "$HOME/.fzf/install" --all
 EOF
 }
-skip_if_installed fzf install_fzf
+pkg_or_build fzf fzf install_fzf
 
 # ripgrep
 
@@ -399,17 +499,64 @@ install_ripgrep() {
   cargo build --release
   mv ./target/release/rg /usr/local/bin/
 }
-skip_if_installed ripgrep install_ripgrep
+pkg_or_build ripgrep ripgrep install_ripgrep
 
 #docker & lazydocker
 
-install_docker() {
+# Rootless podman, driven by the docker CLI via DOCKER_HOST.
+#
+# docker-ce and podman CANNOT coexist on EL8: containerd.io declares
+# "Obsoletes: runc" + "Conflicts: runc", while podman's containers-common has a
+# hard "Requires: runc". But docker-ce-cli and docker-compose-plugin are
+# standalone Go binaries needing nothing from the daemon, so install the CLIENT
+# from Docker's repo and point it at podman's Docker-compatible socket. Existing
+# compose files and project scripts then work unmodified.
+install_podman() {
+  dnf -y install podman skopeo buildah crun
+
+  # docker CLIENT only. Repo disabled afterwards so a later update cannot drag
+  # the daemon back in and re-break podman.
   dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-  dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin.x86_64
-  systemctl enable --now docker
-  usermod -aG docker "$TARGET_USER"
+  dnf -y --setopt=install_weak_deps=False install docker-ce-cli docker-compose-plugin
+  dnf -y config-manager --set-disabled docker-ce-stable docker-ce-test docker-ce-nightly
+
+  loginctl enable-linger "$TARGET_USER"
+  grep -q "^$TARGET_USER:" /etc/subuid 2>/dev/null || \
+    usermod --add-subuids 200000-265535 --add-subgids 200000-265535 "$TARGET_USER"
+
+  # cgroup v2 delegation: rootless Kubernetes (minikube --driver=podman) needs
+  # cpu/cpuset/io on top of the default memory/pids.
+  install -d /etc/systemd/system/user@.service.d
+  cat > /etc/systemd/system/user@.service.d/delegate.conf <<'DELEGATE'
+[Service]
+Delegate=cpu cpuset io memory pids
+DELEGATE
+  systemctl daemon-reload
+
+  # NATIVE kernel overlay, NOT fuse-overlayfs. RHEL 8 backports unprivileged
+  # overlay mounts; the packaged rootless default is fuse-overlayfs, which is
+  # ~2-5x slower on metadata. Omitting mount_program selects the kernel path.
+  sed -i -E 's|^(\s*)(mount_program\s*=.*)$|\1# disabled for native overlay: \2|' \
+    /etc/containers/storage.conf 2>/dev/null || true
+  install -d -o "$TARGET_USER" -g "$TARGET_USER" "/home/$TARGET_USER/.config/containers"
+  cat > "/home/$TARGET_USER/.config/containers/storage.conf" <<'STORAGE'
+[storage]
+driver = "overlay"
+[storage.options]
+# mount_program intentionally unset -> native kernel overlay
+[storage.options.overlay]
+ignore_chown_errors = "true"
+STORAGE
+  chown "$TARGET_USER:$TARGET_USER" "/home/$TARGET_USER/.config/containers/storage.conf"
+
+  sudo -iu "$TARGET_USER" systemctl --user enable --now podman.socket || true
+  if sudo -iu "$TARGET_USER" podman info --format '{{.Store.GraphOptions}}' | grep -qi fuse; then
+    echo "WARNING: fuse-overlayfs in use - check storage.conf"
+  else
+    echo "podman storage: native kernel overlay"
+  fi
 }
-skip_if_installed docker install_docker
+skip_if_installed podman install_podman
 
 install_lazydocker() {
   sudo -i -u "$TARGET_USER" bash << 'EOF'
@@ -470,7 +617,7 @@ install_bleachbit() {
   dnf -y install epel-release 
   dnf install -y bleachbit
 }
-skip_if_installed bleachbit install_bleachbit
+pkg_or_build bleachbit bleachbit install_bleachbit
 
 install_gdu() {
   cd /tmp
@@ -478,18 +625,123 @@ install_gdu() {
   chmod +x gdu_linux_amd64
   mv gdu_linux_amd64 /usr/bin/gdu
 }
-skip_if_installed gdu install_gdu
+pkg_or_build gdu gdu install_gdu
+
+### 9.5 Session & memory hardening ─────────────────────────────────────────────
+# Everything below came out of diagnosing a session that froze under load while
+# a colleague's stock GNOME on identical hardware did not. See
+# archive/docs/2026-09-07-session-stability-investigation.md for the full write-up.
+
+# --- 9.5.1 gnome-session: stop launching a full GNOME under qtile -------------
+# The session runs gnome-session-binary as its anchor (a watchdog monitors that
+# process), which by default pulls in 19 gsd-* daemons plus tracker AND then
+# qtile on top - strictly heavier than the stock GNOME being compared against.
+# /usr/local/share precedes /usr/share in XDG_DATA_DIRS, so this shadows the
+# RPM-owned file without modifying it. gnome-session still starts and keeps its
+# place in the process tree; only its child list shrinks.
+install -d /usr/local/share/gnome-session/sessions
+sed 's|^RequiredComponents=.*|RequiredComponents=org.gnome.SettingsDaemon.XSettings;org.gnome.SettingsDaemon.Keyboard;org.gnome.SettingsDaemon.MediaKeys;|' \
+  /usr/share/gnome-session/sessions/gnome.session \
+  > /usr/local/share/gnome-session/sessions/gnome.session
+chmod 644 /usr/local/share/gnome-session/sessions/gnome.session
+# Kept: XSettings (GTK theme/font/DPI), Keyboard (XKB layout - German here),
+# MediaKeys. Dropped incl. org.gnome.Shell (was started then killed by
+# bin/starting-qtile.sh), Power (source of recurring "Unable to inhibit system"
+# spam), Clipboard (copyq already does this), and Housekeeping (NOTE: this loses
+# the low-disk-space warning).
+
+# --- 9.5.2 disable tracker and other unused autostarts ------------------------
+# tracker indexes $HOME on a dev box and tracker-extract crashed 25+ times in a
+# single afternoon here. It is BOTH an XDG autostart AND a systemd user unit AND
+# D-Bus activated, so all three paths need closing.
+AS="/home/$TARGET_USER/.config/autostart"
+install -d -o "$TARGET_USER" -g "$TARGET_USER" "$AS"
+for n in tracker-store tracker-miner-fs tracker-miner-apps tracker-extract \
+         org.gnome.SettingsDaemon.Account org.gnome.SettingsDaemon.DiskUtilityNotify \
+         gnome-software-service gsettings-data-convert gnome-shell-overrides-migration \
+         user-dirs-update-gtk orca-autostart; do
+  [ -f "/etc/xdg/autostart/$n.desktop" ] || continue
+  printf '[Desktop Entry]\nHidden=true\n' > "$AS/$n.desktop"
+  chown "$TARGET_USER:$TARGET_USER" "$AS/$n.desktop"
+done
+sudo -iu "$TARGET_USER" bash -c '
+  systemctl --user mask tracker-store tracker-miner-fs tracker-miner-apps \
+                        tracker-extract tracker-writeback 2>/dev/null
+  gsettings set org.freedesktop.Tracker.Miner.Files index-recursive-directories "[]"
+  gsettings set org.freedesktop.Tracker.Miner.Files index-single-directories "[]"
+  gsettings set org.freedesktop.Tracker.Miner.Files enable-monitors false
+  gsettings set org.freedesktop.Tracker.Miner.Files crawling-interval -2
+' || true
+
+# --- 9.5.3 writeback latency --------------------------------------------------
+# tuned's virtual-guest profile sets dirty_ratio=30, which on 7.6 GB allows
+# ~2.3 GB of dirty pages to queue before throttling, then flushes to a slow
+# virtual disk - a system-wide stall on every docker build / npm install.
+# Setting *_bytes zeroes the corresponding *_ratio, which is intended.
+cat > /etc/sysctl.d/99-desktop-latency.conf <<'SYSCTL'
+vm.dirty_bytes = 268435456
+vm.dirty_background_bytes = 67108864
+# vm.swappiness = 100
+#   ^ enable ONLY after confirming zswap is using zsmalloc (see 9.5.4):
+#       cat /sys/module/zswap/parameters/zpool
+#     Raising it while the pool is zbud pushes more traffic into a badly
+#     compressing pool and makes things worse.
+SYSCTL
+sysctl -p /etc/sysctl.d/99-desktop-latency.conf || true
+
+# --- 9.5.4 zswap ---------------------------------------------------------------
+# CONFIG_Z3FOLD is NOT set on the EL8 kernel, so zswap.zpool=z3fold silently
+# falls back to zbud (2 pages per zpage, ~1.7:1) - it reserves 20% of RAM and
+# gives little back. CONFIG_ZSMALLOC=y is present and packs far denser.
+# lzo is the only compressor available: CONFIG_CRYPTO_LZ4 and _ZSTD are unset,
+# so zswap.compressor=lz4 would fail the same silent-fallback way.
+if command -v grubby >/dev/null; then
+  grubby --update-kernel=ALL --remove-args="zswap.enabled zswap.zpool zswap.compressor zswap.max_pool_percent"
+  if [[ -n $ZSWAP_ZPOOL && -n $ZSWAP_COMP ]]; then
+    grubby --update-kernel=ALL --args="zswap.enabled=1 zswap.zpool=$ZSWAP_ZPOOL zswap.compressor=$ZSWAP_COMP zswap.max_pool_percent=20"
+    echo "zswap: zpool=$ZSWAP_ZPOOL compressor=$ZSWAP_COMP"
+  else
+    echo "zswap: no supported zpool/compressor detected - leaving disabled"
+  fi
+  echo "zswap staged (needs reboot). Verify: cat /sys/module/zswap/parameters/zpool"
+fi
+
+# --- 9.5.5 Brave GPU flags -----------------------------------------------------
+# No 3D on this VMware guest: Brave probes vaapi -> zink -> DRM/KMS and fails at
+# each, emitting ~40 DRM_IOCTL_MODE_CREATE_DUMB errors per launch. The flatpak
+# hid this because Brave auto-picked --disable-gpu-compositing in the sandbox.
+# ~/.local/bin precedes /usr/bin, so this wrapper covers shell and PATH launches;
+# the .desktop override covers menu launches.
+BIN="/home/$TARGET_USER/.local/bin"
+install -d -o "$TARGET_USER" -g "$TARGET_USER" "$BIN"
+cat > "$BIN/brave-browser" <<'BRAVEWRAP'
+#!/usr/bin/env bash
+exec /usr/bin/brave-browser-stable \
+  --disable-gpu --disable-software-rasterizer --disable-gpu-compositing "$@"
+BRAVEWRAP
+chmod +x "$BIN/brave-browser"; chown "$TARGET_USER:$TARGET_USER" "$BIN/brave-browser"
+APPS="/home/$TARGET_USER/.local/share/applications"
+install -d -o "$TARGET_USER" -g "$TARGET_USER" "$APPS"
+if [ -f /usr/share/applications/brave-browser.desktop ]; then
+  sed 's|^Exec=/usr/bin/brave-browser-stable|Exec=/usr/bin/brave-browser-stable --disable-gpu --disable-software-rasterizer --disable-gpu-compositing|' \
+    /usr/share/applications/brave-browser.desktop > "$APPS/brave-browser.desktop"
+  chown "$TARGET_USER:$TARGET_USER" "$APPS/brave-browser.desktop"
+fi
+
+# NOTE: qtile's glibc allocator tuning (MALLOC_TRIM_THRESHOLD_, MALLOC_ARENA_MAX)
+# lives in bin/starting-qtile.sh, and DOCKER_HOST / DOCKER_BUILDKIT=0 in .zshrc -
+# both are stowed from this repo, so they need nothing here.
 
 ### 10. Default applications
 mkdir -p /home/$TARGET_USER/.config
 # Flatpak VSCodium as default editor (for $TARGET_USER)
-sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default com.vscodium.codium.desktop text/plain
-sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default com.vscodium.codium.desktop text/x-python
-sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default com.vscodium.codium.desktop text/x-shellscript
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default codium.desktop text/plain
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default codium.desktop text/x-python
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default codium.desktop text/x-shellscript
 # Flatpak Brave as default browser (for $TARGET_USER)
-sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-settings set default-web-browser com.brave.Browser.desktop
-sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default com.brave.Browser.desktop x-scheme-handler/http
-sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default com.brave.Browser.desktop x-scheme-handler/https
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-settings set default-web-browser brave-browser.desktop
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default brave-browser.desktop x-scheme-handler/http
+sudo -u "$TARGET_USER" XDG_CONFIG_HOME="/home/$TARGET_USER/.config" xdg-mime default brave-browser.desktop x-scheme-handler/https
 # Kitty as default terminal (system-wide)
 if command -v kitty >/dev/null; then
   sudo alternatives --install /usr/bin/x-terminal-emulator x-terminal-emulator /usr/bin/kitty 50
