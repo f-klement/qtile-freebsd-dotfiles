@@ -644,6 +644,12 @@ sed 's|^RequiredComponents=.*|RequiredComponents=org.gnome.SettingsDaemon.XSetti
   /usr/share/gnome-session/sessions/gnome.session \
   > /usr/local/share/gnome-session/sessions/gnome.session
 chmod 644 /usr/local/share/gnome-session/sessions/gnome.session
+# Also place it at the user path: which of these gnome-session actually reads is
+# build-dependent, and on this EL8 build /usr/local/share alone did NOT take.
+install -d -o "$TARGET_USER" -g "$TARGET_USER" "/home/$TARGET_USER/.config/gnome-session/sessions"
+cp /usr/local/share/gnome-session/sessions/gnome.session \
+   "/home/$TARGET_USER/.config/gnome-session/sessions/gnome.session"
+chown "$TARGET_USER:$TARGET_USER" "/home/$TARGET_USER/.config/gnome-session/sessions/gnome.session"
 # Kept: XSettings (GTK theme/font/DPI), Keyboard (XKB layout - German here),
 # MediaKeys. Dropped incl. org.gnome.Shell (was started then killed by
 # bin/starting-qtile.sh), Power (source of recurring "Unable to inhibit system"
@@ -657,12 +663,28 @@ chmod 644 /usr/local/share/gnome-session/sessions/gnome.session
 AS="/home/$TARGET_USER/.config/autostart"
 install -d -o "$TARGET_USER" -g "$TARGET_USER" "$AS"
 for n in tracker-store tracker-miner-fs tracker-miner-apps tracker-extract \
-         org.gnome.SettingsDaemon.Account org.gnome.SettingsDaemon.DiskUtilityNotify \
          gnome-software-service gsettings-data-convert gnome-shell-overrides-migration \
          user-dirs-update-gtk orca-autostart; do
   [ -f "/etc/xdg/autostart/$n.desktop" ] || continue
   printf '[Desktop Entry]\nHidden=true\n' > "$AS/$n.desktop"
   chown "$TARGET_USER:$TARGET_USER" "$AS/$n.desktop"
+done
+
+# The gsd-* plugins are listed in BOTH gnome.session's RequiredComponents AND
+# /etc/xdg/autostart/org.gnome.SettingsDaemon.*.desktop (OnlyShowIn=GNOME, and
+# gnome-session exports XDG_CURRENT_DESKTOP=GNOME to its children). Trimming the
+# session file alone therefore does NOT stop them - they still autostart. Hide
+# every plugin except the three worth keeping.
+#   XSettings  - GTK theme/font/DPI for every GTK app
+#   Keyboard   - XKB layout (German here; losing it is very noticeable)
+#   MediaKeys  - holds a D-Bus name some apps query
+GSD_KEEP="XSettings Keyboard MediaKeys"
+for f in /etc/xdg/autostart/org.gnome.SettingsDaemon.*.desktop; do
+  [ -e "$f" ] || continue
+  b=$(basename "$f" .desktop); plugin=${b##*.}
+  echo "$GSD_KEEP" | grep -qw "$plugin" && continue
+  printf '[Desktop Entry]\nHidden=true\n' > "$AS/$b.desktop"
+  chown "$TARGET_USER:$TARGET_USER" "$AS/$b.desktop"
 done
 sudo -iu "$TARGET_USER" bash -c '
   systemctl --user mask tracker-store tracker-miner-fs tracker-miner-apps \
