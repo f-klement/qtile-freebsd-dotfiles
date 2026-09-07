@@ -191,7 +191,6 @@ alias la='ls -a'
 alias l='ls -CF'
 alias ls='ls --color=auto -a'
 
-alias deveu='ssh klement@10.70.5.80'
 alias dnfu='sudo -S dnf update -y && sudo -S flatpak update -y && sudo snap refresh'
 alias qenv='source ~/.local/venvs/qtile/bin/activate'
 alias qcheck='~/.local/venvs/qtile/bin/qtile check'
@@ -206,7 +205,6 @@ alias denv='nano ./.env'
 alias treex="tree -I 'node_modules|dist|.git|.sonar|.scannerwork' --prune -a -C"
 alias ld="lazydocker"
 alias flatpak='http_proxy="$http_proxy" https_proxy="$https_proxy" ftp_proxy="$ftp_proxy" all_proxy="$all_proxy" flatpak'
-alias sshlukas='ssh klement@10.70.150.50'
 
 # 9) ex – archive extractor
 ex() {
@@ -268,8 +266,6 @@ alias db="docker build \
 --build-arg NEXUS_TOKEN=NEXUS_TOKEN
 "
 
-export SONARQUBE_URL="http://10.70.150.52:9001"
-export NO_PROXY=${NO_PROXY:+$NO_PROXY,}192.168.49.2,10.70.150.50,10.70.150.52,.bev.gv.at
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
@@ -289,12 +285,12 @@ export DOCKER_HOST="unix:///run/user/1000/podman/podman.sock"
 
 # Use podman's native build (buildah) instead of a containerized BuildKit.
 # Compose v2 otherwise spins up moby/buildkit in a container, which has no access
-# to the host trust store and therefore cannot verify the BEV Issuing CA that
-# signs docker2.bev.gv.at -> "x509: certificate signed by unknown authority".
+# to the host trust store and therefore cannot verify the internal issuing CA
+# that signs the private registry -> "x509: certificate signed by unknown authority".
 # Podman builds on the host and uses /etc/pki/ca-trust directly.
 # Verified: RUN --mount=type=cache still works through podman's compat API.
 export DOCKER_BUILDKIT=0
 export COMPOSE_DOCKER_CLI_BUILD=0
 
-# Maschinenlokale Secrets (SONARQUBE_TOKEN o.ae.), nicht im Repo.
+# Maschinenlokale Werte (Secrets, interne Hosts/IPs), nicht im Repo.
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local

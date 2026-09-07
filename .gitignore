@@ -21,3 +21,6 @@ src/
 .gpg
 # Maschinenlokale Secrets, nie committen
 .zshrc.local
+
+# Interne Doku/Notizen ausserhalb des Repos
+archive/docs/

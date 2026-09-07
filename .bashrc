@@ -110,10 +110,12 @@ fi
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 alias kubectl="minikube kubectl --"
-export NO_PROXY=$NO_PROXY,192.168.49.2
 
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 . "$HOME/.cargo/env"
 
 # Generated for envman. Do not edit.
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
+
+# Maschinenlokale Werte (Secrets, interne Hosts/IPs), nicht im Repo.
+[ -f ~/.bashrc.local ] && source ~/.bashrc.local
