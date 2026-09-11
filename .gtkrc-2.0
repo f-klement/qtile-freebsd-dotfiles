@@ -1,11 +1,10 @@
-# DO NOT EDIT! This file will be overwritten by LXAppearance.
-# Any customization should be done in ~/.gtkrc-2.0.mine instead.
-
+# GTK2 - Rose Pine. Needs the murrine + clearlooks engines: sudo dnf install gtk-murrine-engine gtk2-engines (EPEL).
+# When gsd-xsettings is running, theme/icon/cursor names are overridden by XSETTINGS anyway.
 include "/home/admin/.gtkrc-2.0.mine"
-gtk-theme-name="Adwaita-dark"
+gtk-theme-name="rose-pine-gtk"
 gtk-icon-theme-name="Papirus-Dark"
 gtk-font-name="Cantarell 11"
-gtk-cursor-theme-name="Dracula-cursors"
+gtk-cursor-theme-name="BreezeX-RosePine-Linux"
 gtk-cursor-theme-size=24
 gtk-toolbar-style=GTK_TOOLBAR_BOTH_HORIZ
 gtk-toolbar-icon-size=GTK_ICON_SIZE_LARGE_TOOLBAR
@@ -17,4 +16,3 @@ gtk-xft-antialias=1
 gtk-xft-hinting=1
 gtk-xft-hintstyle="hintslight"
 gtk-xft-rgba="none"
-gtk-modules="pk-gtk-module:canberra-gtk-module"

@@ -331,7 +331,7 @@ for i in groups:
     )
 
 # Use renamed color module
-doom_colors = color_mod.DoomOne
+doom_colors = color_mod.RosePine
 layout_theme = {"border_width": 1,
                 "margin": 0,
                 "border_focus": doom_colors[7],

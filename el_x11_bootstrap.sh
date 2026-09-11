@@ -771,6 +771,79 @@ fi
 # lives in bin/starting-qtile.sh, and DOCKER_HOST / DOCKER_BUILDKIT=0 in .zshrc -
 # both are stowed from this repo, so they need nothing here.
 
+### 9.6 Theming - Rosé Pine, dark, across toolkits ────────────────────────────
+# How theming reaches each toolkit in this session (gnome-session + qtile):
+#   GTK2/3 + Chromium/Electron : gsd-xsettings (kept alive in 9.5.1) broadcasts
+#       gsettings org.gnome.desktop.interface as XSETTINGS. The theme name MUST be
+#       a directory name under ~/.themes. "Adwaita:dark" is GTK_THEME-env syntax,
+#       via XSETTINGS it resolves to nothing and GTK falls back to LIGHT Adwaita.
+#       gsettings live in dconf; .config/qtile/autostart_x11.sh re-asserts them.
+#   GTK4/libadwaita (flatpaks)  : .config/gtk-4.0/gtk.css (@define-color overrides),
+#       exposed to sandboxes via the flatpak overrides below.
+#   Qt5 native (copyq, polkit)  : qt5ct, QT_QPA_PLATFORMTHEME=qt5ct in bin/starting-qtile.sh
+#   Qt on org.kde.Platform      : .config/kdeglobals + QT_QPA_PLATFORMTHEME=kde override
+#   qtile bar / dunst / rofi / kitty : stowed configs, same palette.
+dnf -y install gtk-murrine-engine gtk2-engines qt5ct papirus-icon-theme   # murrine + clearlooks: GTK2 half of the theme (EPEL)
+
+ROSE_GTK_VER="v2.2.0"; ROSE_CUR_VER="v1.1.0"
+sudo -iu "$TARGET_USER" env ROSE_GTK_VER="$ROSE_GTK_VER" ROSE_CUR_VER="$ROSE_CUR_VER" bash -e <<'THEME'
+  mkdir -p ~/.themes ~/.icons
+  tmp=$(mktemp -d)
+  curl -fsSL -o "$tmp/gtk3.tar.gz"    "https://github.com/rose-pine/gtk/releases/download/$ROSE_GTK_VER/gtk3.tar.gz"
+  curl -fsSL -o "$tmp/cursors.tar.xz" "https://github.com/rose-pine/cursors/releases/download/$ROSE_CUR_VER/BreezeX-RosePine-Linux.tar.xz"
+  tar xzf "$tmp/gtk3.tar.gz" -C "$tmp" 2>/dev/null
+  for t in rose-pine-gtk rose-pine-moon-gtk; do
+    rm -rf ~/.themes/$t && cp -r "$tmp/gtk3/$t" ~/.themes/
+    # Upstream ships a mis-generated LIGHT gtk-dark.css. With
+    # gtk-application-prefer-dark-theme=1 GTK loads exactly that file, so make
+    # the "dark variant" the real (already dark) theme.
+    for v in gtk-3.0 gtk-3.20; do cp ~/.themes/$t/$v/gtk.css ~/.themes/$t/$v/gtk-dark.css; done
+  done
+  tar xJf "$tmp/cursors.tar.xz" -C ~/.icons 2>/dev/null
+  printf '[Icon Theme]\nName=Default\nComment=Default Cursor Theme\nInherits=BreezeX-RosePine-Linux\n' > ~/.icons/default/index.theme
+  rm -rf "$tmp"
+
+  # authoritative GTK settings (XSETTINGS source); mirrored in .config/gtk-3.0/settings.ini
+  gsettings set org.gnome.desktop.interface gtk-theme    'rose-pine-gtk'
+  gsettings set org.gnome.desktop.interface icon-theme   'Papirus-Dark'
+  gsettings set org.gnome.desktop.interface cursor-theme 'BreezeX-RosePine-Linux'
+  gsettings set org.gnome.desktop.interface cursor-size  24
+  gsettings set org.gnome.desktop.interface font-name    'Cantarell 11'
+  gsettings set org.gnome.desktop.interface monospace-font-name 'JetBrains Mono Nerd Font 10'
+
+  # flatpak: let sandboxes see the theme, the gtk-4.0/gtk.css overrides and
+  # kdeglobals; route KDE-runtime Qt apps through the KDE platform theme.
+  # GTK_THEME must NOT be forced: it disables libadwaita's own styling.
+  flatpak override --user --unset-env=GTK_THEME
+  flatpak override --user --env=QT_QPA_PLATFORMTHEME=kde \
+    --filesystem=xdg-config/gtk-3.0:ro --filesystem=xdg-config/gtk-4.0:ro \
+    --filesystem=xdg-config/kdeglobals:ro --filesystem=~/.themes:ro --filesystem=~/.icons:ro
+
+  # Obsidian (Electron) paints its own UI and ignores GTK entirely: install the
+  # official Rosé Pine theme into every known vault and select it. Vault
+  # registry only exists after Obsidian's first run, so this is a no-op on a
+  # fresh box until then - safe to re-run.
+  OBS_REG=~/.var/app/md.obsidian.Obsidian/config/obsidian/obsidian.json
+  if [ -f "$OBS_REG" ]; then
+    python3 -c 'import json,sys; [print(v["path"]) for v in json.load(open(sys.argv[1]))["vaults"].values()]' "$OBS_REG" |
+    while read -r vault; do
+      [ -d "$vault/.obsidian" ] || continue
+      mkdir -p "$vault/.obsidian/themes/Rose Pine"
+      curl -fsSL -o "$vault/.obsidian/themes/Rose Pine/manifest.json" https://raw.githubusercontent.com/rose-pine/obsidian/main/manifest.json
+      curl -fsSL -o "$vault/.obsidian/themes/Rose Pine/theme.css"     https://raw.githubusercontent.com/rose-pine/obsidian/main/theme.css
+      cat > "$vault/.obsidian/appearance.json" <<'APPEARANCE'
+{
+  "theme": "obsidian",
+  "cssTheme": "Rose Pine",
+  "interfaceFontFamily": "Cantarell",
+  "textFontFamily": "Cantarell",
+  "monospaceFontFamily": "JetBrains Mono Nerd Font"
+}
+APPEARANCE
+    done
+  fi
+THEME
+
 ### 10. Default applications
 mkdir -p /home/$TARGET_USER/.config
 # Flatpak VSCodium as default editor (for $TARGET_USER)

@@ -18,23 +18,28 @@ export PATH="/usr/local/bin:$PATH"
 if [ -x /usr/libexec/polkit-kde-authentication-agent-1 ]; then
     /usr/libexec/polkit-kde-authentication-agent-1 &
 fi
-gsettings set org.gnome.desktop.interface gtk-theme Adwaita:dark
-# ── Set Session Variables and Theming ────────────────────────────────────────────────
+# ── Theming (Rose Pine, dark) ─────────────────────────────────────────────
+# gsd-xsettings survives the GNOME purge on purpose: it turns these gsettings
+# into XSETTINGS, which every GTK2/GTK3/GTK4/Chromium/Electron app on the display
+# reads - including apps launched later from rofi that never see this script's
+# environment. gsettings persist in dconf, re-set here so a reset can't undo it.
+# NOTE: the theme name must be a directory name (~/.themes/<name>). The
+# "Adwaita:dark" form is GTK_THEME-env syntax only; via XSETTINGS it resolves to
+# no theme at all and GTK silently falls back to LIGHT Adwaita - the old bug.
+gsettings set org.gnome.desktop.interface gtk-theme        'rose-pine-gtk'
+gsettings set org.gnome.desktop.interface icon-theme       'Papirus-Dark'
+gsettings set org.gnome.desktop.interface cursor-theme     'BreezeX-RosePine-Linux'
+gsettings set org.gnome.desktop.interface cursor-size      24
+gsettings set org.gnome.desktop.interface font-name        'Cantarell 11'
+gsettings set org.gnome.desktop.interface monospace-font-name 'JetBrains Mono Nerd Font 10'
+# root-window cursor (apps not going through XSETTINGS/Xcursor env)
+xsetroot -cursor_name left_ptr
 
-# Set XDG_CURRENT_DESKTOP
+# Toolkit env (QT_QPA_PLATFORMTHEME, XCURSOR_*) lives in bin/starting-qtile.sh so
+# that everything qtile spawns inherits it, not just the apps started below.
 xprop -root -set _NET_WM_DESKTOP_ENVIRONMENT "Qtile"
-
-# For GTK applications
-export GTK_THEME=Adwaita:dark 
 export XDG_CURRENT_DESKTOP=Qtile
 export DESKTOP_SESSION=qtile
-flatpak override --user --env=GTK_THEME=Adwaita:dark
-export GTK_APPLICATION_PREFERENCES=prefer-dark-theme=1
-# For Qt applications (Qt 5 and 6)
-export QT_STYLE_OVERRIDE=adwaita-dark # 
-export QT_QPA_PLATFORMTHEME=qt5ct #
-
-
 
 # ── Tray apps ────────────────────────────────────────────────────────────
 nm-applet &
@@ -46,10 +51,7 @@ flatpak run org.flameshot.Flameshot &
 copyq &                       # dnf install copyq
 
 # ── Cursor + View Settings ───────────────────────────────────
-export GTK_THEME=Adwaita:dark
 export QTILE_CHECK_SKIP_STUBS=1
-export XCURSOR_THEME="Dracula"
-export XCURSOR_SIZE="24"
 
 # compositor for transparency/shadows (X11 sessions)
 #picom -b --config ~/.config/picom/picom.conf &

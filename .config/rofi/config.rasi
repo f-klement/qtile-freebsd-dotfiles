@@ -1,79 +1,107 @@
+/* rofi 1.7 - Rosé Pine launcher. `@theme "/dev/null"` drops rofi's built-in
+ * default theme so nothing (cream rows, grey selection) bleeds through. */
+@theme "/dev/null"
+
 configuration {
   modi: "drun,run";
   show-icons: true;
-  icon-theme: "Papirus"; /* Or your preferred icon theme */
-  display-drun: "󰌎 Apps";
-  display-run: " Run";
-  font: "monospace 10"; /* Adjust font and size as needed */
-  terminal: "kitty"; /* Or your preferred terminal */
-  drun-display-format: "{icon} {name}";
+  icon-theme: "Papirus-Dark";
+  display-drun: "Apps";
+  display-run: "Run";
+  font: "Cantarell 12";
+  terminal: "kitty";
+  drun-display-format: "{name}";
   disable-history: false;
   hide-scrollbar: true;
 }
 
 * {
-  background-color: #301934ee; /* Dark purple with slight transparency (fallback) */
-  foreground-color: #f0f0f0; /* Light grey/white for default text */
-  border: 0px solid; /* No border by default */
-  margin: 0px;
-  padding: 5px;
-  spacing: 2px;
+  base:      #191724;
+  surface:   #1f1d2e;
+  overlay:   #26233a;
+  muted:     #6e6a86;
+  subtle:    #908caa;
+  text:      #e0def4;
+  love:      #eb6f92;
+  gold:      #f6c177;
+  rose:      #ebbcba;
+  pine:      #31748f;
+  foam:      #9ccfd8;
+  iris:      #c4a7e7;
+  hl-med:    #403d52;
+
+  background-color: transparent;
+  text-color:       @text;
+  spacing:          0;
+  margin:           0;
+  padding:          0;
 }
 
 window {
-  background-color: #2e3440ee; /* Explicit dark blue background for the window */
-  width: 60%; /* Make it broader */
-  height: 20%; /* Make it not too tall (adjust as needed) */
-  location: center;
-  anchor: center;
-  border: 0px solid; /* Explicitly set no border for the window */
-  border-radius: 8px; /* Optional rounded corners for the window */
+  location:         center;
+  anchor:           center;
+  width:            640px;
+  background-color: @base;
+  border:           2px;
+  border-color:     @iris;
+  border-radius:    12px;
+  padding:          16px;
 }
 
 mainbox {
-  background-color: transparent;
+  spacing:  12px;
   children: [ inputbar, listview ];
-  spacing: 0px; /* Minimal spacing between inputbar and listview */
 }
 
 inputbar {
-  background-color: #2e3440ee;
-  text-color: #ffffff; /* Explicitly set white text for the input bar */
-  foreground-color: #ffffff; /* Forcefully set white foreground color */
-  padding: 8px;
-  border-radius: 8px; /* Optional rounded corners for the input bar */
-  margin: 5px 0px 0px 0px; /* Add a little top margin */
+  children:         [ prompt, entry ];
+  background-color: @overlay;
+  border-radius:    8px;
+  padding:          10px 14px;
+  spacing:          10px;
+}
+
+prompt {
+  text-color:   @iris;
+  font:         "Cantarell Bold 12";
+}
+
+entry {
+  placeholder:       "Search…";
+  placeholder-color: @muted;
+  cursor:            text;
 }
 
 listview {
-  background-color: transparent; /* Inherits dark blue from window */
-  spacing: 1px; /* Minimal spacing between list entries */
-  dynamic: true;
-  scrollbar: false;
-  layout: vertical; /* Ensure vertical layout (default) */
-  lines: 8; /* Show only a few entries at a time (adjust as needed) */
+  lines:       8;
+  columns:     1;
+  fixed-height: false;
+  dynamic:     true;
+  scrollbar:   false;
+  spacing:     2px;
 }
 
 element {
-  background-color: transparent;
-  text-color: @foreground-color;
-  padding: 5px;
-  border-radius: 4px; /* Optional rounded corners for elements */
+  padding:       8px 12px;
+  spacing:       10px;
+  border-radius: 8px;
+  cursor:        pointer;
 }
-
-element selected {
-  background-color: #4a4a4a; /* Dark gray for the selected item background */
-  text-color: #ffffff; /* White text for selected item for contrast */
-  border: 0px solid; /* Explicitly set no border for selected item */
-}
+element normal.normal, element alternate.normal { background-color: transparent; text-color: @text; }
+element normal.urgent, element alternate.urgent { background-color: transparent; text-color: @love; }
+element normal.active, element alternate.active { background-color: transparent; text-color: @foam; }
+element selected.normal { background-color: @hl-med; text-color: @iris; }
+element selected.urgent { background-color: @hl-med; text-color: @love; }
+element selected.active { background-color: @hl-med; text-color: @foam; }
 
 element-icon {
-  size: 1em;
-  padding: 0px 5px 0px 0px;
-  background-color: inherit;
+  size:             1.4em;
+  background-color: transparent;
+  text-color:       inherit;
 }
-
 element-text {
-  text-color: inherit;
-  background-color: inherit;
+  background-color: transparent;
+  text-color:       inherit;
+  vertical-align:   0.5;
+  highlight:        bold #f6c177;
 }

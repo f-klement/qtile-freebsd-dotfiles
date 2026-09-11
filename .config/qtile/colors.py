@@ -130,3 +130,20 @@ TomorrowNight = [
     ["#70c0ba", "#70c0ba"], # color[8]
     ["#7d7d7d", "#7d7d7d"]  # color[9]
     ]
+
+# Rose Pine (main) - https://rosepinetheme.com/palette
+# Slot semantics follow DoomOne above: 0 bg, 1 fg, 2 dark accent, 3 red, 4 green,
+# 5 yellow/orange, 6 blue, 7 magenta, 8 cyan, 9 grey. Rose Pine has no green, so
+# foam stands in for it and rose for cyan.
+RosePine = [
+    ["#191724", "#191724"], # base       - bg
+    ["#e0def4", "#e0def4"], # text       - fg
+    ["#1f1d2e", "#1f1d2e"], # surface    - color01
+    ["#eb6f92", "#eb6f92"], # love       - color02 (red)
+    ["#9ccfd8", "#9ccfd8"], # foam       - color03 (green slot)
+    ["#f6c177", "#f6c177"], # gold       - color04 (yellow)
+    ["#31748f", "#31748f"], # pine       - color05 (blue)
+    ["#c4a7e7", "#c4a7e7"], # iris       - color06 (magenta; focus border)
+    ["#ebbcba", "#ebbcba"], # rose       - color15 (cyan slot)
+    ["#6e6a86", "#6e6a86"]  # muted      - color[9] (grey)
+    ]
