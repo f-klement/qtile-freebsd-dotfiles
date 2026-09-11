@@ -17,9 +17,22 @@
 #   captures use ImageMagick on the X root window instead (clipboard via copyq).
 # * Since flameshot 14 even `gui` goes through that portal by default (same 30 s
 #   timeout, then "Unable to capture screen"). It only falls back to a native X11
-#   grab with `useX11LegacyScreenshot=true` in
-#   ~/.var/app/org.flameshot.Flameshot/config/flameshot/flameshot.ini.
+#   grab with `useX11LegacyScreenshot=true` in its flameshot.ini. That file lives
+#   in ~/.var (flatpak sandbox data, deliberately not stowed - stow would fold
+#   the whole app dir into this repo), so this script asserts the key before
+#   every launch instead. Idempotent; survives flameshot rewriting the ini.
 mode="${1:-gui}"
+ini="$HOME/.var/app/org.flameshot.Flameshot/config/flameshot/flameshot.ini"
+ensure_x11_legacy() {
+  grep -qx 'useX11LegacyScreenshot=true' "$ini" 2>/dev/null && return
+  mkdir -p "${ini%/*}"
+  if grep -q '^\[General\]' "$ini" 2>/dev/null; then
+    sed -i '/^useX11LegacyScreenshot=/d; /^\[General\]/a useX11LegacyScreenshot=true' "$ini"
+  else
+    { printf '[General]\nuseX11LegacyScreenshot=true\n'; if [ -f "$ini" ]; then cat "$ini"; fi; } \
+      > "$ini.tmp" && mv "$ini.tmp" "$ini"
+  fi
+}
 case "$mode" in
   gui)
     flatpak kill org.flameshot.Flameshot 2>/dev/null || true
@@ -27,6 +40,7 @@ case "$mode" in
       flatpak ps --columns=application 2>/dev/null | grep -q '^org.flameshot.Flameshot$' || break
       sleep 0.2
     done
+    ensure_x11_legacy
     exec flatpak run org.flameshot.Flameshot gui
     ;;
   full)
