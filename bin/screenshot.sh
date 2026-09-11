@@ -15,6 +15,10 @@
 # * flameshot's `full`/`screen` CLI modes go through the xdg screenshot portal,
 #   whose GTK backend needs gnome-shell (dead here) -> 30 s timeout. Whole-screen
 #   captures use ImageMagick on the X root window instead (clipboard via copyq).
+# * Since flameshot 14 even `gui` goes through that portal by default (same 30 s
+#   timeout, then "Unable to capture screen"). It only falls back to a native X11
+#   grab with `useX11LegacyScreenshot=true` in
+#   ~/.var/app/org.flameshot.Flameshot/config/flameshot/flameshot.ini.
 mode="${1:-gui}"
 case "$mode" in
   gui)
