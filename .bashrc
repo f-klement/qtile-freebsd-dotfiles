@@ -7,6 +7,10 @@
 
 export PATH="/usr/local/bin:$HOME/.local/bin:$PATH"
 
+# Keep Python bytecode out of the stowed config dirs (~/.config/qtile, ranger
+# plugins are symlinks into ~/.dotfiles, so __pycache__ would land in the repo).
+export PYTHONPYCACHEPREFIX="$HOME/.cache/python-pycache"
+
 
 # don't put duplicate lines or lines starting with space in the history.
 # See bash(1) for more options

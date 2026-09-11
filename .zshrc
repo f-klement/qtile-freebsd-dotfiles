@@ -158,6 +158,10 @@ alias kitten='kitty +kitten'
 # 2) PATH
 export PATH="/usr/local/bin:$HOME/.local/bin:$PATH"
 
+# Keep Python bytecode out of the stowed config dirs (~/.config/qtile, ranger
+# plugins are symlinks into ~/.dotfiles, so __pycache__ would land in the repo).
+export PYTHONPYCACHEPREFIX="$HOME/.cache/python-pycache"
+
 # 3) History settings
 HISTSIZE=1000
 SAVEHIST=2000

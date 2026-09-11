@@ -43,8 +43,12 @@ dbus-update-activation-environment --systemd GNOME_KEYRING_CONTROL SSH_AUTH_SOCK
 export QT_QPA_PLATFORMTHEME=qt5ct
 export XCURSOR_THEME=BreezeX-RosePine-Linux
 export XCURSOR_SIZE=24
+# Keep Python bytecode out of the stowed config dirs: ~/.config/qtile and the
+# ranger plugins are symlinks into ~/.dotfiles, so qtile compiling config.py
+# would otherwise drop __pycache__ into the repo.
+export PYTHONPYCACHEPREFIX="$HOME/.cache/python-pycache"
 # make D-Bus-activated and systemd --user-launched apps (flatpak, portals) see the same
-dbus-update-activation-environment --systemd QT_QPA_PLATFORMTHEME XCURSOR_THEME XCURSOR_SIZE
+dbus-update-activation-environment --systemd QT_QPA_PLATFORMTHEME XCURSOR_THEME XCURSOR_SIZE PYTHONPYCACHEPREFIX
 
 # ── 4. The Window Manager Handover ───────────────────────────────────────
 # glibc allocator tuning. MALLOC_TRIM_THRESHOLD_ pins the trim threshold and

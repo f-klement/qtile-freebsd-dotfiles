@@ -13,6 +13,7 @@ alternative_rpm_distros.*
 
 __pycache__
 __pycache__/*
+.+\.pyc
 \.mypy_cache
 \.mypy_cache/*
 
