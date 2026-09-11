@@ -460,7 +460,22 @@ def init_widgets(include_systray=True, include_updates=True):
             measure_mem="G",               # tell the widget we want GiB/GB
             update_interval=5,
         ),
-        widget.CPU(foreground = doom_colors[4],format=" {load_percent:>3}%", update_interval=5)
+        widget.CPU(foreground = doom_colors[4],format=" {load_percent:>3}%", update_interval=5),
+        # Screenshot launcher. Replaces flameshot's tray icon: that icon is the
+        # resident daemon, which caches the screen geometry and drifts under
+        # xrdp (see bin/screenshot.sh). This goes through the same wrapper as
+        # the Print keys, so every capture starts a fresh process.
+        widget.TextBox(
+            text="\U000f0100",        # Nerd Font camera (nf-md-camera)
+            fontsize=15,
+            padding=6,
+            foreground = doom_colors[8],
+            mouse_callbacks={
+                "Button1": lazy.spawn(os.path.expanduser("~/bin/screenshot.sh") + " gui"),   # region select
+                "Button2": lazy.spawn(os.path.expanduser("~/bin/screenshot.sh") + " full"),  # whole screen -> ~/Pictures
+                "Button3": lazy.spawn(os.path.expanduser("~/bin/screenshot.sh") + " clip"),  # whole screen -> clipboard
+            },
+        ),
         ]
     if include_systray:
         widgets.append(widget.Systray(icon_size=12, padding=2))
