@@ -1,0 +1,54 @@
+{
+  "manifest_version": 2,
+  "name": "Rosé Pine",
+  "version": "1.0.0",
+  "description": "Rosé Pine static theme - colours from the official Firefox Color preset (github.com/rose-pine/firefox), built locally because addons.mozilla.org is blocked here.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "rose-pine@rosepinetheme.com"
+    }
+  },
+  "theme": {
+    "colors": {
+      "toolbar": "rgb(31, 29, 46)",
+      "toolbar_text": "rgb(224, 222, 244)",
+      "frame": "rgb(25, 23, 36)",
+      "tab_background_text": "rgb(144, 140, 170)",
+      "toolbar_field": "rgb(38, 35, 58)",
+      "toolbar_field_text": "rgb(224, 222, 244)",
+      "tab_line": "rgb(49, 116, 143)",
+      "popup": "rgb(31, 29, 46)",
+      "popup_text": "rgb(224, 222, 244)",
+      "frame_inactive": "rgb(25, 23, 36)",
+      "icons_attention": "rgb(235, 111, 146)",
+      "icons": "rgb(235, 188, 186)",
+      "ntp_background": "rgb(25, 23, 36)",
+      "toolbar_field_highlight": "rgb(82, 79, 103)",
+      "sidebar": "rgb(31, 29, 46)",
+      "sidebar_text": "rgb(224, 222, 244)",
+      "sidebar_border": "rgb(38, 35, 58)",
+      "sidebar_highlight": "rgb(64, 61, 82)",
+      "sidebar_highlight_text": "rgb(196, 167, 231)",
+      "popup_border": "rgb(38, 35, 58)",
+      "popup_highlight": "rgb(64, 61, 82)",
+      "popup_highlight_text": "rgb(196, 167, 231)",
+      "tab_selected": "rgb(31, 29, 46)",
+      "tab_text": "rgb(224, 222, 244)",
+      "bookmark_text": "rgb(224, 222, 244)",
+      "toolbar_field_border": "rgb(38, 35, 58)",
+      "toolbar_field_border_focus": "rgb(196, 167, 231)",
+      "toolbar_field_focus": "rgb(38, 35, 58)",
+      "toolbar_field_text_focus": "rgb(224, 222, 244)",
+      "toolbar_top_separator": "rgb(25, 23, 36)",
+      "toolbar_bottom_separator": "rgb(38, 35, 58)",
+      "toolbar_vertical_separator": "rgb(64, 61, 82)",
+      "ntp_text": "rgb(224, 222, 244)",
+      "button_background_hover": "rgb(64, 61, 82)",
+      "button_background_active": "rgb(82, 79, 103)"
+    },
+    "properties": {
+      "color_scheme": "dark",
+      "content_color_scheme": "dark"
+    }
+  }
+}

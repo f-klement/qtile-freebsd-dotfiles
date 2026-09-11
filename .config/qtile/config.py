@@ -162,6 +162,10 @@ keys = [
     Key([mod, "mod1"], "space", lazy.spawn("/usr/local/bin/rofi -show drun"), desc="Launch rofi"), 
     Key([mod], "e", lazy.spawn(editor), desc="Launch VSCodium"),
     Key([mod], "o", lazy.spawn(notes), desc="Launch Obsidian"),
+    # screenshots (see bin/screenshot.sh for why not the flameshot daemon)
+    Key([], "Print", lazy.spawn(os.path.expanduser("~/bin/screenshot.sh") + " gui"), desc="Screenshot: select region"),
+    Key(["shift"], "Print", lazy.spawn(os.path.expanduser("~/bin/screenshot.sh") + " clip"), desc="Screenshot: full screen to clipboard"),
+    Key(["control"], "Print", lazy.spawn(os.path.expanduser("~/bin/screenshot.sh") + " full"), desc="Screenshot: full screen to ~/Pictures"),
     # Toggle between split and unsplit sides of stack.
     # Split = all windows displayed
     # Unsplit = 1 window displayed, like Max layout, but still with

@@ -842,6 +842,39 @@ sudo -iu "$TARGET_USER" env ROSE_GTK_VER="$ROSE_GTK_VER" ROSE_CUR_VER="$ROSE_CUR
 APPEARANCE
     done
   fi
+
+  # Brave: official Rosé Pine theme from the Chrome Web Store, via Chromium's
+  # "External Extensions" mechanism (picked up on next Brave start, no click).
+  mkdir -p ~/.config/BraveSoftware/Brave-Browser/"External Extensions"
+  printf '{\n  "external_update_url": "https://clients2.google.com/service/update2/crx"\n}\n' \
+    > ~/.config/BraveSoftware/Brave-Browser/"External Extensions"/noimedcjdohhokijigpfcbjcfcaaahej.json
+  # Fallback if the store is ever blocked: brave://extensions -> Load unpacked -> ~/.config/rose-pine-chrome
+
+  # LibreWolf: addons.mozilla.org is blocked by the corporate filter, so the
+  # theme is a locally built static-theme XPI (.config/rose-pine-firefox, colours
+  # from the official Firefox Color preset) sideloaded into every profile.
+  for ini in ~/.librewolf/profiles.ini ~/.var/app/io.gitlab.librewolf-community/.librewolf/profiles.ini; do
+    [ -f "$ini" ] || continue
+    root=$(dirname "$ini")
+    grep -E '^Path=' "$ini" | cut -d= -f2 | while read -r rel; do
+      prof="$root/$rel"; [ -d "$prof" ] || continue
+      mkdir -p "$prof/extensions"
+      cp ~/.config/rose-pine-firefox/rose-pine@rosepinetheme.com.xpi "$prof/extensions/"
+      grep -q 'rose-pine@rosepinetheme.com' "$prof/user.js" 2>/dev/null && continue
+      cat >> "$prof/user.js" <<'USERJS'
+
+// ── Rosé Pine static theme, sideloaded from ~/.dotfiles/.config/rose-pine-firefox ──
+user_pref("xpinstall.signatures.required", false);       // locally built XPI is unsigned
+user_pref("extensions.sideloadScopes", 1);                // Firefox >=74 ignores profile extensions/ without this
+user_pref("extensions.autoDisableScopes", 14);            // ...and auto-enable what it finds there
+user_pref("extensions.activeThemeID", "rose-pine@rosepinetheme.com");
+user_pref("layout.css.prefers-color-scheme.content-override", 0);  // sites get prefers-color-scheme: dark
+USERJS
+    done
+  done
+  # NOTE: a freshly sideloaded theme registers but is not switched on by
+  # activeThemeID alone; enable it once under about:addons -> Themes on the
+  # first run after this (or flip active/userDisabled in extensions.json).
 THEME
 
 ### 10. Default applications

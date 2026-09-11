@@ -45,8 +45,9 @@ export DESKTOP_SESSION=qtile
 nm-applet &
 #blueman-applet &              # requires: sudo dnf install blueman (not to be found on these corpo distros)
 
-# screenshots
-flatpak run org.flameshot.Flameshot &
+# screenshots: NO resident flameshot daemon - it caches the screen geometry
+# and xrdp changes it per connection. Print / Shift+Print in config.py run
+# ~/bin/screenshot.sh, which always starts a fresh process.
 # ── Clipboard manager ────────────────────────────────────────────────────
 copyq &                       # dnf install copyq
 
