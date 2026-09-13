@@ -124,51 +124,28 @@ Section "InputClass"
 EndSection
 KBD
 
-### 2.5 Accelerated video (virtio-gpu KMS) ──────────────────────────────────────
-# IMPORTANT: this needs the VM's display device to be **virtio-gpu**, NOT QXL or
-# plain std/bochs VGA. QXL/std have no FreeBSD KMS driver, so Xorg falls back to
-# the unaccelerated `scfb` framebuffer -> sluggish scrolling and screen tearing.
+### 2.5 Video (stable scfb framebuffer) + boot speed ────────────────────────────
+# This setup stays on the plain `scfb` driver (the EFI GOP framebuffer). We tried
+# virtio-gpu KMS for acceleration and it does NOT work on FreeBSD here: the
+# modesetting driver found no connected output and the X server crashed (virtio-
+# gpu DRM is experimental on FreeBSD). scfb is unaccelerated but rock-solid, so it
+# stays -- and the scfb pin in /usr/local/etc/X11/xorg.conf.d is kept, NOT removed.
 #
-#   QEMU:      -device virtio-gpu-pci        (2D KMS; enough to be tear-free)
-#              -device virtio-vga-gl  + host virglrenderer  (adds 3D/GL)
-#   libvirt:   set the <video><model type="virtio"/> (Virtio, optionally 3D).
-#
-# Guest side: install the DRM KMS module + Mesa, load virtio_gpu at boot. Once a
-# /dev/dri/card0 exists, Xorg auto-selects the accelerated `modesetting` driver.
-pkgi drm-kmod mesa-dri mesa-libs libglvnd
-# Load virtio_gpu from loader.conf (early, at the loader stage) rather than rc's
-# kld_list -- KMS drivers are more reliable loaded before the kernel probes the
-# console, and this is what actually creates /dev/dri.
-sysrc -f /boot/loader.conf virtio_gpu_load=YES
-sysrc kld_list-="virtio_gpu" 2>/dev/null || true   # drop the less-reliable rc path if set
+# scfb has no runtime mode-setting, so the resolution (incl. 16:10) is fixed at
+# the loader via the EFI framebuffer -- xrandr cannot change it later. This needs
+# the VM's virtual GPU to actually offer the mode.
+sysrc -f /boot/loader.conf efi_max_resolution="1920x1200"
+# Make sure virtio_gpu is NOT loaded at boot: it grabs the framebuffer from scfb
+# and crashed X. (-x deletes the key if a previous run set it.)
+sysrc -f /boot/loader.conf -x virtio_gpu_load 2>/dev/null || true
 
 # Faster boot: skip the beastie menu and its 10s countdown (the FreeBSD analogue
-# of a GRUB timeout). It boots straight to multi-user; SDDM then handles login.
+# of a GRUB timeout). Boots straight to multi-user; SDDM then handles login.
 sysrc -f /boot/loader.conf autoboot_delay=1 beastie_disable=YES
 
-# Persist a 16:10 preferred mode for the greeter (session-level fallback lives in
-# autostart_x11.sh). Harmless under scfb; applies once modesetting is active.
-cat >/usr/local/etc/X11/xorg.conf.d/20-virtio-mode.conf <<'MODE'
-Section "Device"
-    Identifier "virtio-gpu"
-    Driver     "modesetting"
-EndSection
-Section "Monitor"
-    Identifier    "Virtual-1"
-    Option        "PreferredMode" "1920x1200"
-EndSection
-MODE
-
-# The scfb pin, if present, must be removed so modesetting can take over -- but
-# ONLY once real DRM hardware is available, otherwise X has no driver at all.
-if [ -e /dev/dri/card0 ]; then
-  rm -f /usr/local/etc/X11/xorg.conf.d/driver-scfb.conf
-  echo "video: /dev/dri/card0 present -> using accelerated modesetting"
-else
-  echo "video: no /dev/dri yet. It appears after a reboot (loader loads"
-  echo "       virtio_gpu). This run leaves the scfb pin in place; the NEXT"
-  echo "       bootstrap run (post-reboot) removes it automatically."
-fi
+# Software GL (llvmpipe) so GL apps still run without DRI. Deliberately NOT
+# drm-kmod -- loading virtio_gpu is exactly what broke X.
+pkgi mesa-dri mesa-libs libglvnd
 
 ### 3. WM utilities & runtime packages ─────────────────────────────────────────
 # All packaged in pkg.
@@ -371,7 +348,7 @@ chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.xinitrc"
 # launches qtile directly via qtile.desktop, no gnome-session in between). It
 # lists the Qtile session from /usr/local/share/xsessions/qtile.desktop above.
 sysrc sddm_enable=YES
-# /dev/dri access for the logged-in user's GL apps under the accelerated driver.
+# video group: harmless on scfb, and correct if a KMS driver is ever added later.
 pw groupmod video -m "$TARGET_USER" 2>/dev/null || true
 
 # 9.5 Rosé Pine SDDM theme. Self-contained (no external repo): a compact QtQuick
@@ -479,12 +456,13 @@ done
 
 echo
 echo "============================================================"
-echo " Bootstrap complete."
-echo "   * Switch the VM's display device to virtio-gpu, then REBOOT"
-echo "     (loads virtio_gpu -> /dev/dri -> accelerated, tear-free X,"
-echo "      and starts the SDDM login greeter)."
-echo "   * At the SDDM greeter, pick the 'Qtile' session and log in."
-echo "     (No DM? 'startx' also works via ~/.xinitrc.)"
-echo "   * Editor: VSCodium/code-oss has no FreeBSD port yet - install"
-echo "     your choice separately (mod+e is wired to it)."
+echo " Bootstrap complete. REBOOT to start the SDDM greeter."
+echo "   * Video: stays on the stable scfb framebuffer (virtio-gpu KMS crashes"
+echo "     X on FreeBSD - no connected output). No GPU accel; that's expected."
+echo "   * Resolution incl. 16:10 is the EFI framebuffer mode (efi_max_resolution"
+echo "     in loader.conf) and only works if the VM's EFI GOP offers it - a"
+echo "     host-side QEMU video setting, not fixable from the guest."
+echo "   * At the SDDM greeter pick the 'Qtile' session. (No DM? 'startx' works.)"
+echo "   * Editor: VSCodium/code-oss has no FreeBSD port yet - install your own"
+echo "     (mod+e is wired to it)."
 echo "============================================================"

@@ -2,20 +2,9 @@
 
 export PATH="/usr/local/bin:$PATH"
 
-# Force the 16:10 mode on the connected output (name varies: Virtual-1/Virtio-0/
-# ...). Under the accelerated modesetting driver 1920x1200 is available; if the
-# virtual GPU didn't advertise it, synthesise the modeline with cvt and add it.
-# No-op under scfb (single fixed mode), so it's safe there too.
-_out="$(xrandr | awk '/ connected/{print $1; exit}')"
-if [ -n "$_out" ]; then
-  if ! xrandr --output "$_out" --mode 1920x1200 2>/dev/null; then
-    _ml="$(cvt 1920 1200 60 | sed -n 's/^Modeline //p')"
-    _nm="$(printf '%s' "$_ml" | awk '{print $1}' | tr -d '"')"
-    [ -n "$_nm" ] && xrandr --newmode $_ml 2>/dev/null && \
-      xrandr --addmode "$_out" "$_nm" 2>/dev/null && \
-      xrandr --output "$_out" --mode "$_nm" 2>/dev/null
-  fi
-fi
+# NOTE: no xrandr mode-setting here. Under the scfb driver the resolution is the
+# fixed EFI framebuffer mode (set at the loader via efi_max_resolution) and xrandr
+# cannot change it. 16:10 therefore depends on the VM's EFI GOP offering 1920x1200.
 
 # Start notification daemon
 /usr/local/bin/dunst &  
