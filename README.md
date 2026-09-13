@@ -1,22 +1,36 @@
-# qtile-dotfiles
+# qtile-freebsd-dotfiles
 
-A minimal RHEL/EL qtile dotfiles setup (X11).
+A minimal **FreeBSD 14+** qtile dotfiles setup (X11).
 
-The bootstrap detects the platform rather than assuming EL8: it maps
-powertools/crb, probes the kernel for the best zswap zpool + compressor,
-tests for native (non-fuse) rootless overlay, and prefers distro packages
-over from-source builds where they exist. That makes it far less work to
-lift onto EL9/10.
+Ported from a Rocky/RHEL 8 workstation config. Everything the WM needs is
+installed from the native `pkg` repository — no third-party repos, no
+from-source builds, and none of the Linux-only kernel/session tuning the EL8
+version carried. The window-manager config, the volume readout (base-system
+`mixer(8)`), the network widget (default-route NIC), and the update widget
+(`pkg`) are all FreeBSD-native.
 
-Containers are rootless podman driven by the docker CLI via DOCKER_HOST;
-there is no docker daemon. See `archive/docs/` for the reasoning behind the
-session and memory hardening in section 9.5.
+The bootstrap script (`x11_bootstrap.sh`) provisions: Xorg + qtile, the WM
+utilities (picom, dunst, rofi, feh, xss-lock, i3lock, copyq), LibreWolf,
+nautilus, flameshot, the Rosé Pine GTK theme + BreezeX cursor, fonts, and the
+common dev tooling (node, uv, rust, ripgrep, fzf, direnv, podman).
 
-deploy configs with gnu stow
-the setup file will ask for the root password
+Deploy the configs with GNU stow. The setup script needs root (for `pkg`).
 
-```bash
-chmod +x el_x11_bootstrap.sh
-sudo ./el_x11_bootstrap.sh
+```sh
+pkg install -y bash stow git          # if not already present
+chmod +x x11_bootstrap.sh
+sudo ./x11_bootstrap.sh
 stow .
+echo 'exec qtile start' > ~/.xinitrc   # then `startx`, or pick Qtile in your DM
 ```
+
+## Notes
+
+- **Editor:** VSCodium / code-oss has no FreeBSD port yet — install your choice
+  separately and it will be picked up by `mod+e`.
+- **Audio:** volume is driven through the base-system `mixer(8)`; PulseAudio is
+  installed for `pavucontrol` and app routing.
+- **Containers:** `podman` is installed, but FreeBSD podman uses ZFS + jails and
+  needs host-specific setup — configure it per the FreeBSD handbook when needed.
+- **Guest tools:** this image targets KVM/virtio (`qemu-guest-agent`); swap in
+  the appropriate guest package for other hypervisors.

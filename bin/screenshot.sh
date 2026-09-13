@@ -1,55 +1,96 @@
 #!/usr/bin/env bash
-# Screenshots on this xrdp/Xvnc desktop.
+# Screenshots for the qtile desktop on FreeBSD/X11.
 #
-#   screenshot.sh gui    - flameshot region selector (Ctrl+C copy, Ctrl+S save)
+#   screenshot.sh gui    - interactive region selector -> clipboard/save
 #   screenshot.sh full   - whole screen -> ~/Pictures/screenshot-<ts>.png
 #   screenshot.sh clip   - whole screen -> clipboard
 #
-# Why the dance:
-# * flameshot (>=12) turns the first launched process into a resident daemon
-#   and forwards later `flameshot gui` calls to it. That daemon keeps the screen
-#   geometry from when it started, and xrdp changes the geometry whenever the
-#   RDP client's monitor layout does (this session began at 5040x1920, it is
-#   1920x1200 now). A stale daemon therefore presents the wrong region - the
-#   "drifting field of view". So: kill any resident instance, start fresh.
-# * flameshot's `full`/`screen` CLI modes go through the xdg screenshot portal,
-#   whose GTK backend needs gnome-shell (dead here) -> 30 s timeout. Whole-screen
-#   captures use ImageMagick on the X root window instead (clipboard via copyq).
-# * Since flameshot 14 even `gui` goes through that portal by default (same 30 s
-#   timeout, then "Unable to capture screen"). It only falls back to a native X11
-#   grab with `useX11LegacyScreenshot=true` in its flameshot.ini. That file lives
-#   in ~/.var (flatpak sandbox data, deliberately not stowed - stow would fold
-#   the whole app dir into this repo), so this script asserts the key before
-#   every launch instead. Idempotent; survives flameshot rewriting the ini.
+# FreeBSD has no flatpak, so the old flatpak-flameshot daemon dance is gone.
+# Instead we probe for whatever native X11 capture tool is installed and use
+# it. Install one of these to enable screenshots:
+#
+#   pkg install flameshot      # best: interactive region select + annotate
+#   pkg install scrot          # light, has -s region select
+#   pkg install maim slop      # maim -s for region select
+#   pkg install ImageMagick7   # provides `import` (region + root window)
+#
+# Clipboard uses xclip (installed); copyq is a fallback. notify-send comes
+# from libnotify and is served by dunst.
+set -u
+
 mode="${1:-gui}"
-ini="$HOME/.var/app/org.flameshot.Flameshot/config/flameshot/flameshot.ini"
-ensure_x11_legacy() {
-  grep -qx 'useX11LegacyScreenshot=true' "$ini" 2>/dev/null && return
-  mkdir -p "${ini%/*}"
-  if grep -q '^\[General\]' "$ini" 2>/dev/null; then
-    sed -i '/^useX11LegacyScreenshot=/d; /^\[General\]/a useX11LegacyScreenshot=true' "$ini"
-  else
-    { printf '[General]\nuseX11LegacyScreenshot=true\n'; if [ -f "$ini" ]; then cat "$ini"; fi; } \
-      > "$ini.tmp" && mv "$ini.tmp" "$ini"
-  fi
+outdir="$HOME/Pictures"
+ts() { date +%Y%m%d-%H%M%S; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+notify() { have notify-send && notify-send -i camera-photo "$1" "${2:-}"; }
+
+no_backend() {
+    notify "Screenshot unavailable" \
+        "No capture tool found. Install one: pkg install flameshot (or scrot / maim / ImageMagick7)."
+    echo "screenshot.sh: no capture backend (flameshot/scrot/maim/import) installed" >&2
+    exit 1
 }
+
+# Copy a PNG file on stdin's path ($1) to the clipboard.
+to_clipboard() {
+    if have xclip; then
+        xclip -selection clipboard -t image/png -i "$1"
+    elif have copyq; then
+        copyq copy image/png - < "$1"
+    else
+        return 1
+    fi
+}
+
+# Capture the whole screen to the PNG path in $1. Returns non-zero if no tool.
+capture_full() {
+    local out="$1"
+    if   have scrot;  then scrot -o "$out"
+    elif have maim;   then maim "$out"
+    elif have import; then import -window root "$out"
+    else return 2
+    fi
+}
+
+# Interactive region capture to the PNG path in $1.
+capture_region() {
+    local out="$1"
+    if   have scrot;  then scrot -s -o "$out"
+    elif have maim;   then maim -s "$out"
+    elif have import; then import "$out"
+    else return 2
+    fi
+}
+
 case "$mode" in
   gui)
-    flatpak kill org.flameshot.Flameshot 2>/dev/null || true
-    for _ in $(seq 10); do
-      flatpak ps --columns=application 2>/dev/null | grep -q '^org.flameshot.Flameshot$' || break
-      sleep 0.2
-    done
-    ensure_x11_legacy
-    exec flatpak run org.flameshot.Flameshot gui
+    # flameshot has its own richer selector+annotate UI; prefer it outright.
+    if have flameshot; then
+        exec flameshot gui
+    fi
+    tmp="$(mktemp -t shot).png"
+    trap 'rm -f "$tmp"' EXIT
+    capture_region "$tmp" || no_backend
+    [ -s "$tmp" ] || exit 0            # user cancelled the selection
+    if to_clipboard "$tmp"; then
+        notify "Screenshot" "region copied to clipboard"
+    else
+        mkdir -p "$outdir"; mv "$tmp" "$outdir/screenshot-$(ts).png"
+        trap - EXIT
+    fi
     ;;
   full)
-    out="$HOME/Pictures/screenshot-$(date +%Y%m%d-%H%M%S).png"
-    import -window root "$out" && notify-send -i camera-photo "Screenshot saved" "$out"
+    mkdir -p "$outdir"
+    out="$outdir/screenshot-$(ts).png"
+    capture_full "$out" || no_backend
+    notify "Screenshot saved" "$out"
     ;;
   clip)
-    import -window root png:- | copyq copy image/png - \
-      && notify-send -i camera-photo "Screenshot" "copied to clipboard"
+    tmp="$(mktemp -t shot).png"
+    trap 'rm -f "$tmp"' EXIT
+    capture_full "$tmp" || no_backend
+    to_clipboard "$tmp" && notify "Screenshot" "copied to clipboard"
     ;;
   *) echo "usage: $0 [gui|full|clip]" >&2; exit 2 ;;
 esac

@@ -1,0 +1,19 @@
+[org/gnome/desktop/interface]
+gtk-theme='rose-pine-gtk'
+icon-theme='Papirus-Dark'
+cursor-theme='BreezeX-RosePine-Linux'
+cursor-size=24
+font-name='Cantarell 11'
+monospace-font-name='JetBrains Mono Nerd Font 10'
+
+[org/gtk/gtk4/settings/file-chooser]
+sort-directories-first=false
+show-hidden=false
+
+[org/gnome/nautilus/preferences]
+migrated-gtk-settings=true
+search-filter-time-type='last_modified'
+default-folder-viewer='icon-view'
+
+[org/gnome/nautilus/window-state]
+initial-size=(958, 1050)

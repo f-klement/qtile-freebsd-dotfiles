@@ -25,6 +25,8 @@
 # SOFTWARE.
 
 import os
+import platform
+import psutil
 import shutil
 import colors as color_mod
 import subprocess
@@ -38,13 +40,33 @@ from types import FunctionType
 
 mod = "mod4"
 terminal = "kitty"
-# Prefer the native RPM once installed; fall back to the flatpak until then.
-browser = "brave-browser" if shutil.which("brave-browser") else "flatpak run com.brave.Browser"
-editor  = "codium"
-files = "nautilus"
-notes = "flatpak run md.obsidian.Obsidian"
+# FreeBSD has no flatpak/snap; everything comes from pkg. Prefer whatever is
+# actually on PATH so a missing package degrades to a no-op spawn rather than a
+# "command not found". LibreWolf is the browser on this box (Brave has no
+# FreeBSD port); firefox/chromium remain as fallbacks.
+browser = next((b for b in ("librewolf", "firefox", "chromium") if shutil.which(b)), "librewolf")
+editor  = "codium" if shutil.which("codium") else "code"
+files = next((f for f in ("nautilus", "pcmanfm", "thunar") if shutil.which(f)), "nautilus")
 
 # ── helpers ───────────────────────────────────────────────────────────────
+def _default_interface():
+    """Interface backing the default route.
+
+    The old config pinned "eth0", which does not exist on FreeBSD -- here the
+    virtio NIC is vtnet0 (bare metal would be em0/re0/igb0/...). Read it from
+    the routing table so the Net widget shows real traffic on any host.
+    """
+    try:
+        out = subprocess.check_output(["route", "-n", "get", "default"]).decode()
+        for line in out.splitlines():
+            line = line.strip()
+            if line.startswith("interface:"):
+                return line.split(":", 1)[1].strip()
+    except Exception:
+        pass
+    return "vtnet0"
+
+
 def _physical_screen_order(qtile):
     """qtile numbers screens in RandR output order, which is NOT the order they
     sit in physically. On this machine:
@@ -159,9 +181,9 @@ keys = [
      # new launch shortcuts
     Key([mod], "b", lazy.spawn(browser), desc="Launch browser"),
     Key([mod], "d", lazy.spawn(files),   desc="Launch file manager"),
-    Key([mod, "mod1"], "space", lazy.spawn("/usr/local/bin/rofi -show drun"), desc="Launch rofi"), 
+    Key([mod, "mod1"], "space", lazy.spawn("/usr/local/bin/rofi -show drun"), desc="Launch rofi"),
     Key([mod], "e", lazy.spawn(editor), desc="Launch VSCodium"),
-    Key([mod], "o", lazy.spawn(notes), desc="Launch Obsidian"),
+    Key([mod, "mod1"], "l", lazy.spawn(os.path.expanduser("~/.config/qtile/lock_with_random_bg_x11.sh")), desc="Lock screen"),
     # screenshots (see bin/screenshot.sh for why not the flameshot daemon)
     Key([], "Print", lazy.spawn(os.path.expanduser("~/bin/screenshot.sh") + " gui"), desc="Screenshot: select region"),
     Key([mod, "mod1"], "s", lazy.spawn(os.path.expanduser("~/bin/screenshot.sh") + " gui"), desc="Screenshot: select region (for keyboards without Print)"),
@@ -284,22 +306,24 @@ def _detect_screen_roles():
 
 SCREEN = _detect_screen_roles()
 
+# Default-route NIC for the Net widget (see _default_interface()).
+NET_INTERFACE = _default_interface()
+
 # Which display each group lives on.
 GROUP_SCREEN = {
-    "1": SCREEN["portrait"],    # brave
+    "1": SCREEN["portrait"],    # librewolf
     "2": SCREEN["landscape"],   # codium
     "5": SCREEN["small"],       # nautilus
-    "6": SCREEN["small"],       # obsidian
 }
 
 # Where apps spawn. wm_class values taken from the running windows, NOT from the
 # .desktop StartupWMClass - codium's desktop file claims "VSCodium" but the real
 # runtime class is "codium", so the desktop hint would never have matched.
+# LibreWolf reports WM_CLASS ("Navigator", "librewolf") -> match on "librewolf".
 GROUP_MATCHES = {
-    "1": [Match(wm_class="brave-browser")],
+    "1": [Match(wm_class="librewolf")],
     "2": [Match(wm_class="codium")],
     "5": [Match(wm_class="nautilus")],
-    "6": [Match(wm_class="md.obsidian.obsidian")],
 }
 
 groups = []
@@ -372,23 +396,38 @@ extension_defaults = widget_defaults.copy()
 
 # ── helpers ───────────────────────────────────────────────────────────────
 
+# FreeBSD OSS mixer commands for the Volume widget. The old config used
+# widget.PulseVolume, which imports pulsectl_asyncio -- not packaged here, so
+# the widget silently failed to load and no volume readout appeared. mixer(8)
+# is in the base system and needs no Python bindings.
+#
+# widget.Volume runs every one of these through the SHELL (getoutput / call
+# shell=True), so they MUST be strings -- a list would run only its first word.
+# FreeBSD 14's mixer reports volume as a 0.0-1.0 float; scale it to the NN%
+# integer that widget.Volume's regex (\d?\d?\d?%) expects.
+VOL_GET   = r"""mixer vol.volume | sed -E 's/.*=([0-9.]+):.*/\1/' | awk '{printf "%d%%\n", $1*100}'"""
+VOL_MUTEQ = "mixer vol.mute"          # prints 'vol.mute=on' when muted
+VOL_UP    = "mixer vol.volume=+0.05"
+VOL_DOWN  = "mixer vol.volume=-0.05"
+VOL_MUTE  = "mixer vol.mute=toggle"
+
 @lazy.function
 def toggle_vol_text(qtile):
-    w = qtile.widgets_map["pulsevolume"]
-    w.fmt = "" if w.fmt.endswith("{}") else " {}"   # no percent sign
+    w = qtile.widgets_map["volume"]
+    w.fmt = "󰕾" if w.fmt.endswith("{}") else "󰕾 {}"   # no percent sign
     w.bar.draw()
     
 @lazy.function
 def power_menu(qtile):
+    # rofi-based (yad is not packaged on FreeBSD). Pipe two choices into rofi's
+    # dmenu mode and act on the selection with FreeBSD's shutdown(8).
     qtile.spawn(
-        "bash -c '"
-        "choice=$(GTK_THEME=Adwaita:dark yad --width=200 --height=50 "
-        "--title=\"Power Menu\" "
-        "--button=\"Shutdown:0\" --button=\"Reboot:1\" "
-        "--center --on-top --no-markup --undecorated); "
-        "code=$?; "
-        "if [ \"$code\" -eq 0 ]; then systemctl poweroff; "
-        "elif [ \"$code\" -eq 1 ]; then systemctl reboot; fi'"
+        "sh -c '"
+        "choice=$(printf \"Shutdown\\nReboot\" | rofi -dmenu -p Power); "
+        "case \"$choice\" in "
+        "Shutdown) sudo shutdown -p now ;; "
+        "Reboot) sudo shutdown -r now ;; "
+        "esac'"
     )
 
 # Detect number of connected monitors via xrandr
@@ -432,36 +471,50 @@ def init_widgets(include_systray=True, include_updates=True):
 
         # ---- RIGHT cluster --------------------------------------------------
         widget.Net(
-            interface="eth0",   # pin: avoids enumerating docker0/virbr0/veth* each poll
+            interface=NET_INTERFACE,   # default-route NIC (vtnet0/em0/re0/...), resolved at load
             # ▾/▴ are 1-char arrows from the Nerd-Font set
             format="{down:.0f}{down_suffix}▾{up:.0f}{up_suffix}▴",
             update_interval=5,
-            mouse_callbacks={
-                "Button3": lazy.spawn("nm-connection-editor"),  # right-click → open NetworkManager GUI
-            },
+            # No NetworkManager on FreeBSD; right-click opens the mixer's network
+            # is not meaningful here, so the GUI callback is intentionally dropped.
             foreground = doom_colors[5],
         ),
         #xwidget.Bluetooth(),                 # from qtile-extras
         #widget.Battery(format="  {percent:2.0%}", low_percentage=0.15),
-        widget.PulseVolume(
-            name="pulsevolume",
+        widget.Volume(
+            name="volume",
             foreground = doom_colors[7],
-            fmt=" {}",                       # single value, no % sign
+            get_volume_command=VOL_GET,
+            volume_up_command=VOL_UP,
+            volume_down_command=VOL_DOWN,
+            mute_command=VOL_MUTE,
+            check_mute_command=VOL_MUTEQ,
+            check_mute_string="=on",     # 'vol.mute=on' -> muted; '=off' never matches
+            update_interval=2,
+            fmt="󰕾 {}",                       # single value, no % sign
             mouse_callbacks={
                 "Button1": toggle_vol_text,                                           # show/hide value
                 "Button2": lazy.spawn("pavucontrol"),                                 # open mixer
-                "Button3": lazy.spawn("pactl set-sink-mute @DEFAULT_SINK@ toggle"),   # mute/unmute
-                "Button4": lazy.spawn("pactl set-sink-volume @DEFAULT_SINK@ +5%"),    # vol +5 %
-                "Button5": lazy.spawn("pactl set-sink-volume @DEFAULT_SINK@ -5%"),    # vol –5 %
+                "Button3": lazy.spawn(VOL_MUTE),   # mute/unmute
+                "Button4": lazy.spawn(VOL_UP),    # vol +5 %
+                "Button5": lazy.spawn(VOL_DOWN),    # vol –5 %
             },
         ),
         widget.Memory(
             foreground = doom_colors[8],
-            format="{MemUsed:4.1f}G",   # e.g. “  7.6 G”
+            format="󰍛{MemUsed:4.1f}G",   # e.g. “󰍛  7.6 G”
             measure_mem="G",               # tell the widget we want GiB/GB
             update_interval=5,
         ),
-        widget.CPU(foreground = doom_colors[4],format=" {load_percent:>3}%", update_interval=5),
+        # widget.CPU crashes on FreeBSD: qtile calls psutil.cpu_freq(), which
+        # returns None here, then dereferences freq.current. Poll cpu_percent
+        # directly instead -- same look, no freq access.
+        widget.GenPollText(
+            name="cpu",
+            foreground=doom_colors[4],
+            update_interval=5,
+            func=lambda: "{:>3}%".format(round(psutil.cpu_percent())),
+        ),
         # Screenshot launcher. Replaces flameshot's tray icon: that icon is the
         # resident daemon, which caches the screen geometry and drifts under
         # xrdp (see bin/screenshot.sh). This goes through the same wrapper as
@@ -483,10 +536,14 @@ def init_widgets(include_systray=True, include_updates=True):
     widgets.extend([
         widget.Spacer(length=3),
     ])
-    # CheckUpdates spawns a dnf process per poll; keep it on one bar only.
+    # CheckUpdates spawns a pkg process per poll; keep it on one bar only.
     widgets.extend([
         widget.CheckUpdates(
-            distro="Fedora",  # This uses the DNF backend, which works for Rocky/RHEL
+            # No FreeBSD backend ships with qtile, so drive pkg directly. This
+            # counts locally-known outdated packages ('<') without hitting the
+            # network; a periodic `pkg update` refreshes the catalog. pkg version
+            # emits exactly one line per outdated package.
+            custom_command="pkg version -vIL='<'",
             display_format="󱧕 {updates}", #  is a Nerd Font package icon
             no_update_string="󱧕 0",
             colour_have_updates=doom_colors[5], # Green
@@ -568,7 +625,6 @@ floating_layout = layout.Floating(
         Match(wm_class='pinentry-gtk-2'), # GPG key password entry
         Match(wm_class="ssh-askpass"),    # ssh-askpass
         Match(wm_class="toolbar"),        # toolbars
-        Match(wm_class="Yad"),            # yad boxes
         Match(title="branchdialog"),      # gitk
         Match(title='Confirmation'),      # tastyworks exit box
         Match(title='Qalculate!'),        # qalculate-gtk
@@ -603,11 +659,9 @@ def assign_app_group(client):
     # options: "switch" = switch to group after moving
 
     d = {
-        "Brave-browser": ("1", "switch"),  
-        "VSCodium":      ("2", "switch"),  
-        "obsidian":      ("5", None),       
-        "Nautilus":      ("6", None), 
-        "KeePassXC":     ("7", "switch")     
+        "librewolf":     ("1", "switch"),
+        "VSCodium":      ("2", "switch"),
+        "Nautilus":      ("5", None),
     }
 
     # Get the wm_class
@@ -661,32 +715,36 @@ def start_once():
 
 
 
-# ── glibc heap trim ──────────────────────────────────────────────────────────
-# qtile's main (brk) arena ratchets upward: the polling widgets fragment it, so
-# the top free chunk stays small and glibc's dynamic trim threshold drifts up
-# until it effectively never returns pages. The heap then only grows, gets
-# swapped out, and every gen-2 GC has to fault it all back in -- which stalls
-# the WM event loop. Force an explicit trim on a timer.
-import ctypes as _ctypes
+# ── glibc heap trim (Linux/glibc only) ──────────────────────────────────────
+# qtile's main (brk) arena ratchets upward under glibc: the polling widgets
+# fragment it, so the top free chunk stays small and glibc's dynamic trim
+# threshold drifts up until it effectively never returns pages. The heap then
+# only grows, gets swapped out, and every gen-2 GC has to fault it all back in
+# -- which stalls the WM event loop. Force an explicit trim on a timer.
+#
+# This is a glibc-specific pathology. FreeBSD's allocator is jemalloc, which has
+# no malloc_trim(3) and returns pages to the OS on its own, so there is nothing
+# to fix and no libc.so.6 to dlopen -- the whole workaround is skipped off Linux
+# (skipping it also avoids a spurious "libc.so.6 not found" warning every boot).
+if platform.system() == "Linux":
+    import ctypes as _ctypes
 
-MALLOC_TRIM_INTERVAL = 900  # seconds
+    MALLOC_TRIM_INTERVAL = 900  # seconds
 
-try:
-    _libc = _ctypes.CDLL("libc.so.6", use_errno=True)
-except OSError as _exc:  # pragma: no cover - non-glibc
-    _libc = None
-    logger.warning("malloc_trim unavailable: %s", _exc)
+    try:
+        _libc = _ctypes.CDLL("libc.so.6", use_errno=True)
+    except OSError as _exc:  # pragma: no cover - non-glibc
+        _libc = None
+        logger.warning("malloc_trim unavailable: %s", _exc)
 
+    def _malloc_trim():
+        if _libc is not None:
+            try:
+                _libc.malloc_trim(0)
+            except Exception as exc:
+                logger.warning("malloc_trim failed: %s", exc)
+        qtile.call_later(MALLOC_TRIM_INTERVAL, _malloc_trim)
 
-def _malloc_trim():
-    if _libc is not None:
-        try:
-            _libc.malloc_trim(0)
-        except Exception as exc:
-            logger.warning("malloc_trim failed: %s", exc)
-    qtile.call_later(MALLOC_TRIM_INTERVAL, _malloc_trim)
-
-
-@hook.subscribe.startup_complete
-def _start_malloc_trim():
-    qtile.call_later(MALLOC_TRIM_INTERVAL, _malloc_trim)
+    @hook.subscribe.startup_complete
+    def _start_malloc_trim():
+        qtile.call_later(MALLOC_TRIM_INTERVAL, _malloc_trim)

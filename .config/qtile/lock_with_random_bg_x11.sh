@@ -1,9 +1,34 @@
 #!/usr/bin/env bash
-# pick a random .jpg/.png from your lock folder
+# Rosé Pine screen lock via i3lock-color (a themeable superset of i3lock).
+# Picks a random wallpaper, blurs it, and draws the unlock ring in the palette.
+# Colour args are RRGGBBAA hex (no leading '#').
 IMG="$(find ~/Pictures/wallpapers -type f \( -iname '*.jpg' -o -iname '*.png' \) | shuf -n1)"
-# if none found, go black
-if [[ -z "$IMG" ]]; then
-  exec i3lock --color=000000 --nofork --show-failed-attempts --ignore-empty-password
+
+# Rosé Pine palette
+base=191724; surface=1f1d2e; text=e0def4; muted=6e6a86
+iris=c4a7e7; foam=9ccfd8; gold=f6c177; love=eb6f92
+
+if [[ -n "$IMG" ]]; then
+  bg=(--image="$IMG" --blur=6)
 else
-  exec i3lock --image="$IMG" --nofork --show-failed-attempts --ignore-empty-password
+  bg=(--color="$base")
 fi
+
+exec i3lock \
+  "${bg[@]}" \
+  --nofork --ignore-empty-password --show-failed-attempts \
+  --clock --indicator \
+  --radius=120 --ring-width=8 \
+  --inside-color="${surface}cc"     --ring-color="${iris}ff" \
+  --insidever-color="${surface}cc"  --ringver-color="${foam}ff" \
+  --insidewrong-color="${surface}cc" --ringwrong-color="${love}ff" \
+  --line-uses-inside \
+  --keyhl-color="${gold}ff" --bshl-color="${love}ff" \
+  --separator-color="${base}00" \
+  --verif-color="${foam}ff" --wrong-color="${love}ff" \
+  --time-color="${text}ff" --date-color="${muted}ff" \
+  --greeter-color="${text}ff" \
+  --time-str="%H:%M" --date-str="%A, %d %B" \
+  --verif-text="…" --wrong-text="✗" --noinput-text="" --lock-text="" --lockfailed-text="" \
+  --time-font="JetBrainsMono Nerd Font" --date-font="JetBrainsMono Nerd Font" \
+  --verif-font="JetBrainsMono Nerd Font" --wrong-font="JetBrainsMono Nerd Font"

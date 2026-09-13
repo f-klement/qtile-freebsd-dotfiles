@@ -31,7 +31,8 @@ if [ ! -f /tmp/qtile_darkmode_set ]; then
 fi
 
 # ── Tray apps ────────────────────────────────────────────────────────────
-nm-applet &
+# No NetworkManager on FreeBSD; only start nm-applet if it is actually present.
+command -v nm-applet >/dev/null 2>&1 && nm-applet &
 #blueman-applet &
 
 # ── Clipboard manager
@@ -51,6 +52,7 @@ swaybg_random() {
 # find all images in folder & subfolders, pick one at random
   local file=$(find "$dir" -type f \( -iname '*.jpg' -o -iname '*.png' \) | shuf -n1)
   swaybg -i "$file" -m fill
+}
 
 # initial set
 swaybg_random

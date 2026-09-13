@@ -1,7 +1,21 @@
 #!/usr/bin/env bash 
 
 export PATH="/usr/local/bin:$PATH"
-#xrandr --output Virtual-1 --mode 1920x1200 --rate 60
+
+# Force the 16:10 mode on the connected output (name varies: Virtual-1/Virtio-0/
+# ...). Under the accelerated modesetting driver 1920x1200 is available; if the
+# virtual GPU didn't advertise it, synthesise the modeline with cvt and add it.
+# No-op under scfb (single fixed mode), so it's safe there too.
+_out="$(xrandr | awk '/ connected/{print $1; exit}')"
+if [ -n "$_out" ]; then
+  if ! xrandr --output "$_out" --mode 1920x1200 2>/dev/null; then
+    _ml="$(cvt 1920 1200 60 | sed -n 's/^Modeline //p')"
+    _nm="$(printf '%s' "$_ml" | awk '{print $1}' | tr -d '"')"
+    [ -n "$_nm" ] && xrandr --newmode $_ml 2>/dev/null && \
+      xrandr --addmode "$_out" "$_nm" 2>/dev/null && \
+      xrandr --output "$_out" --mode "$_nm" 2>/dev/null
+  fi
+fi
 
 # Start notification daemon
 /usr/local/bin/dunst &  
@@ -14,10 +28,17 @@ export PATH="/usr/local/bin:$PATH"
 # # Sync the variables to the global D-Bus and Systemd environment
 # dbus-update-activation-environment --systemd GNOME_KEYRING_CONTROL SSH_AUTH_SOCK
 # # ── Policy-kit agent (package name: polkit-gnome) ────────────────────────
-# KDE Polkit agent (works with Qtile)
-if [ -x /usr/libexec/polkit-kde-authentication-agent-1 ]; then
-    /usr/libexec/polkit-kde-authentication-agent-1 &
-fi
+# KDE Polkit agent (works with Qtile). On FreeBSD ports install under
+# /usr/local/libexec; the Linux path is kept as a fallback for portability.
+for _polkit in \
+    /usr/local/libexec/polkit-kde-authentication-agent-1 \
+    /usr/local/libexec/polkit-gnome-authentication-agent-1 \
+    /usr/libexec/polkit-kde-authentication-agent-1; do
+    if [ -x "$_polkit" ]; then
+        "$_polkit" &
+        break
+    fi
+done
 # ── Theming (Rose Pine, dark) ─────────────────────────────────────────────
 # gsd-xsettings survives the GNOME purge on purpose: it turns these gsettings
 # into XSETTINGS, which every GTK2/GTK3/GTK4/Chromium/Electron app on the display
@@ -32,8 +53,13 @@ gsettings set org.gnome.desktop.interface cursor-theme     'BreezeX-RosePine-Lin
 gsettings set org.gnome.desktop.interface cursor-size      24
 gsettings set org.gnome.desktop.interface font-name        'Cantarell 11'
 gsettings set org.gnome.desktop.interface monospace-font-name 'JetBrains Mono Nerd Font 10'
-# root-window cursor (apps not going through XSETTINGS/Xcursor env)
-xsetroot -cursor_name left_ptr
+# root-window cursor. `-cursor_name left_ptr` loads the ugly white CORE-X arrow;
+# `-xcf` loads the themed Rosé Pine (BreezeX) pointer instead. Also export the
+# Xcursor env so apps this script launches inherit the themed cursor even when the
+# session wasn't started through the qtile-session launcher.
+export XCURSOR_THEME=BreezeX-RosePine-Linux
+export XCURSOR_SIZE=24
+xsetroot -xcf "$HOME/.icons/BreezeX-RosePine-Linux/cursors/left_ptr" 24
 
 # Toolkit env (QT_QPA_PLATFORMTHEME, XCURSOR_*) lives in bin/starting-qtile.sh so
 # that everything qtile spawns inherits it, not just the apps started below.
@@ -42,20 +68,29 @@ export XDG_CURRENT_DESKTOP=Qtile
 export DESKTOP_SESSION=qtile
 
 # ── Tray apps ────────────────────────────────────────────────────────────
-nm-applet &
-#blueman-applet &              # requires: sudo dnf install blueman (not to be found on these corpo distros)
+# FreeBSD has no NetworkManager; nm-applet is not packaged. Networking is
+# handled by rc.conf / netif, so only start the applet if it somehow exists.
+command -v nm-applet >/dev/null 2>&1 && nm-applet &
+#blueman-applet &              # requires: pkg install blueman
 
 # screenshots: NO resident flameshot daemon - it caches the screen geometry
 # and xrdp changes it per connection. Print / Shift+Print in config.py run
 # ~/bin/screenshot.sh, which always starts a fresh process.
 # ── Clipboard manager ────────────────────────────────────────────────────
-copyq &                       # dnf install copyq
+copyq &                       # pkg install copyq
 
 # ── Cursor + View Settings ───────────────────────────────────
 export QTILE_CHECK_SKIP_STUBS=1
 
-# compositor for transparency/shadows (X11 sessions)
-#picom -b --config ~/.config/picom/picom.conf &
+# German keyboard layout. On EL8 gsd-keyboard set this; with no GNOME here it has
+# to be asserted explicitly (the xorg.conf.d keymap covers the SDDM greeter, this
+# covers the running qtile session).
+setxkbmap de &
+
+# compositor for transparency/shadows (X11 sessions). Enables the bar's 0.70
+# opacity to composite cleanly and removes tearing once the accelerated
+# virtio-gpu/modesetting driver is active (xrender backend works on scfb too).
+picom -b --config ~/.config/picom/picom.conf &
 
 # wallpaper service
 # Enumerate the wallpaper list ONCE at startup. The previous version ran a full
@@ -93,11 +128,13 @@ xset s 300 -dpms
 # not work. Run it on the session's existing bus.
 xss-lock -- ~/.config/qtile/lock_with_random_bg_x11.sh &
 
-# ── lauch user applications ──────────────
-# flatpak
-# Prefer native Brave (RPM) once installed; flatpak is the fallback.
-if command -v brave-browser >/dev/null 2>&1; then brave-browser & else flatpak run com.brave.Browser & fi
-flatpak run md.obsidian.Obsidian &
+# ── launch user applications ──────────────
+# FreeBSD has no flatpak; everything is a native pkg. LibreWolf is the browser
+# here (no Brave port); launch whichever is installed so a missing app is a
+# silent no-op, not an error.
+for _browser in librewolf firefox chromium; do
+    if command -v "$_browser" >/dev/null 2>&1; then "$_browser" & break; fi
+done
 
 # native apps & snaps
 codium &

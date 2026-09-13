@@ -1,0 +1,9 @@
+# Global Bun config ($HOME/.bunfig.toml is read for every project).
+[install]
+# Supply-chain cooldown: only install package versions published at least 3 days
+# ago (value is in SECONDS; 3 * 24 * 3600 = 259200). Bun computes the age at
+# install time, so it's a true rolling window. Mirrors pnpm's minimum-release-age
+# (~/.npmrc, minutes) and uv's UV_EXCLUDE_NEWER (~/.zshrc).
+minimumReleaseAge = 259200
+# Allow-list packages that must be installable immediately, if ever needed:
+# minimumReleaseAgeExcludes = ["my-own-scoped-pkg"]

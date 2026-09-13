@@ -2,7 +2,7 @@
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
-export ZSH="/home/admin/.oh-my-zsh"
+export ZSH="/home/florian/.oh-my-zsh"
 export PATH="$PATH:/bin:/usr/bin"
 
 # VS Codium Flatpak Fixes
@@ -145,8 +145,8 @@ source $ZSH/oh-my-zsh.sh
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 #
-alias python=/usr/bin/python3.12
-alias python3=/usr/bin/python3.12
+alias python=/usr/local/bin/python3.12
+alias python3=/usr/local/bin/python3.12
 alias pip=pip3
 alias kitten='kitty +kitten'
 
@@ -161,6 +161,12 @@ export PATH="/usr/local/bin:$HOME/.local/bin:$PATH"
 # Keep Python bytecode out of the stowed config dirs (~/.config/qtile, ranger
 # plugins are symlinks into ~/.dotfiles, so __pycache__ would land in the repo).
 export PYTHONPYCACHEPREFIX="$HOME/.cache/python-pycache"
+
+# Supply-chain cooldown for uv: refuse Python packages published in the last
+# 3 days. UV_EXCLUDE_NEWER is uv's global knob (applies to every uv command); it
+# wants a fixed timestamp, so recompute it at each shell start to keep it a
+# rolling ~3-day window without a per-command wrapper.
+export UV_EXCLUDE_NEWER="$(date -v-3d +%Y-%m-%dT%H:%M:%SZ)"
 
 # 3) History settings
 HISTSIZE=1000
@@ -179,36 +185,34 @@ setopt inc_append_history    # write each command as you go
 
 # 7) Prompt
 if (( EUID == 0 )); then
-  PS1='%K{#DD4B39} $ %K{#0087AF}%K{#ffffff} %m %K{#535555}%K{#ffffff} %~ %K{#535555}%k%f '
+  PS1='%K{#DD4B39} $ %K{#0087AF}%F{#ffffff} %m %K{#535555}%F{#ffffff} %~ %K{#535555}%k%f '
 else
-  PS1='%K{#FF0000} $ %K{#800080}%K{#800080} %n@%m %K{#535555}%K{#ffffff} %~ %K{#535555}%k%f '
+  PS1='%K{#FF0000} $ %K{#800080}%K{#800080} %n@%m %K{#535555}%F{#ffffff} %~ %K{#535555}%k%f '
 fi
 
 # 8) Aliases
 alias cp="cp -i"
 alias df='df -h'
-alias free='free -m'
 alias more=less
 
-alias ll='ls -alF'
-alias la='ls -a'
-alias l='ls -CF'
-alias ls='ls --color=auto -a'
+# FreeBSD base ls uses -G for colour (GNU's --color is rejected by base ls).
+alias ls='ls -aG'
+alias ll='ls -alFG'
+alias la='ls -aG'
+alias l='ls -CFG'
 
-alias dnfu='sudo -S dnf update -y && sudo -S flatpak update -y && sudo snap refresh'
-alias qenv='source ~/.local/venvs/qtile/bin/activate'
-alias qcheck='~/.local/venvs/qtile/bin/qtile check'
+# system update (FreeBSD pkg; replaces the old dnf/flatpak/snap chain)
+alias pkgu='sudo pkg update && sudo pkg upgrade'
+
+# qtile helpers. qtile is a pkg (/usr/local/bin/qtile on PATH) - no venv here.
+alias qcheck='qtile check'
 alias qconf='vim ~/.config/qtile/config.py'
-alias qvalid='( source ~/.local/venvs/qtile/bin/activate && qtile check )'
 alias qlogs='tail -f ~/.local/share/qtile/qtile.log'
-alias qstart='~/.local/venvs/qtile/bin/qtile start'
+alias qstart='qtile start'
 alias qrefresh='qtile cmd-obj -o . -f reload_config'
 
-alias dc='docker compose'
 alias denv='nano ./.env'
 alias treex="tree -I 'node_modules|dist|.git|.sonar|.scannerwork' --prune -a -C"
-alias ld="lazydocker"
-alias flatpak='http_proxy="$http_proxy" https_proxy="$https_proxy" ftp_proxy="$ftp_proxy" all_proxy="$all_proxy" flatpak'
 
 # 9) ex – archive extractor
 ex() {
@@ -232,15 +236,10 @@ ex() {
   fi
 }
 
-# 10) enable color support for ls/grep if dircolors exists
-if [[ -x /opt/bin/dircolors ]]; then
-  [[ -r ~/.dircolors ]] && eval "$(dircolors -b ~/.dircolors)" \
-                      || eval "$(dircolors -b)"
-  alias ls='ls --color=auto -a'
-  alias grep='grep --color=auto'
-  alias fgrep='fgrep --color=auto'
-  alias egrep='egrep --color=auto'
-fi
+# 10) colour support. FreeBSD colours ls via CLICOLOR (set above with -G); BSD
+# grep does support --color=auto.
+export CLICOLOR=1
+alias grep='grep --color=auto'
 
 # 11) source additional aliases if present
 [[ -f ~/.bash_aliases ]] && source ~/.bash_aliases
@@ -251,30 +250,19 @@ if [[ -f /opt/etc/bash_completion ]]; then
 fi
 
 
-# bun completions
-[ -s "/home/admin/.bun/_bun" ] && source "/home/admin/.bun/_bun"
+# node/npm come from pkg on FreeBSD; nvm, bun and linuxbrew are not used here.
 
-# bun
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
-
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
-alias kubectl="minikube kubectl --"
-
-
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
-if [ /usr/local/bin/kubectl ]; then source <(kubectl completion zsh); fi
+# fzf keybindings + completion (pkg fzf >= 0.48 ships the --zsh integration).
+command -v fzf >/dev/null 2>&1 && source <(fzf --zsh) 2>/dev/null
 
 # Generated for envman. Do not edit.
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
 
+# system info banner on interactive shells (skip inside kitty's scrollback dumps)
+command -v fastfetch >/dev/null 2>&1 && fastfetch
+
 # opencode
-export PATH=/home/admin/.opencode/bin:$PATH
+export PATH=/home/florian/.opencode/bin:$PATH
 
 # docker-ce-cli and docker-compose-plugin are still installed; the docker DAEMON
 # is not. Point them at rootless podman's Docker-compatible API so the 19 compose
