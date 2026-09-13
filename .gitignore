@@ -25,3 +25,7 @@ src/
 
 # Interne Doku/Notizen ausserhalb des Repos
 archive/docs/
+
+
+.config/librewolf/
+.config/copyq/
